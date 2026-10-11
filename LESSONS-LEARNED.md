@@ -480,10 +480,10 @@ there is; once the change is live, every finding costs a repair instead of
 a revision.
 
 **A content-based plausibility gate beat a size heuristic for a backup.**
-A backup job passed its "file is big enough" check while dumping a single
-table, because a flag restricted the dump to one table. A check that looked
-at what the dump actually contained (the expected schemas and tables
-present) caught it where size could not. Check backups by content, and
+A backup job was dumping a single table because a flag restricted the dump
+to one table, which a size-style sanity check had not caught. A check that
+looked at what the dump actually contained (the expected schemas and tables
+present) caught it. Check backups by content, and
 prove them with a real restore.
 
 **Deleting the base branch of a stacked PR closes the PR automatically.**

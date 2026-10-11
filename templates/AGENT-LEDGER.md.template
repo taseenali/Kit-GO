@@ -1,0 +1,58 @@
+# Agent ledger and resume protocol -- {{PROJECT_NAME}}
+
+Purpose: no progress is lost to a usage limit, an account switch, or a
+dead session, and work resumes exactly where it stopped. Part of the
+optional speed mode (`SPEED-MODE.md`). Update the roster at every launch
+and every finish.
+
+**This file never contains credentials.** Not a password, a key, or a
+token value -- not even a short-lived one. If a scoped token is in use,
+write only that one exists, what it is scoped to, and when it must be
+revoked.
+
+## How work is kept safe (rules for every builder agent)
+
+1. Own git worktree, own feature branch.
+2. A `wip: <what>` commit after every logical step, then
+   `git push -u origin <its own branch>`. Own branch only: never the
+   default branch, never a merge, never a force-push.
+3. The branch history is the progress record; the final report is the
+   summary.
+4. The lead (not the builder) merges and edits the shared files.
+
+## Resume protocol
+
+**A. One agent hit a usage limit.** After the reset, resume the same agent
+by id with: "You were interrupted by a usage limit. Run
+`git log --oneline origin/<base>..HEAD` and `git status`, then continue
+from the first unfinished item. Commit and push as you go."
+
+**B. The whole session ended (new session or account).**
+1. `git fetch --all --prune`, `git worktree list`, and list open PRs.
+2. For each branch in the roster, `git log --oneline origin/<base>..origin/<branch>`
+   shows what is done and `git diff origin/<base>...origin/<branch> --stat`
+   shows its footprint.
+3. Launch a fresh builder per unfinished branch: "Check out
+   `origin/<branch>`. The commits on it are finished; do not redo them.
+   Read the spec and continue from the first unfinished item. Commit and
+   push as you go."
+4. Read the project's progress note and the latest collaborator-log entry,
+   then run the setup verification script.
+
+**C. A read-only agent (reviewer, QA) was cut off.** It left no commits.
+Re-run it with the same brief; check `git branch -a` for review branches
+it may have pushed; clean up any test data it created (by its tag).
+
+## Roster ({{DATE}})
+
+| Agent | Role / model class | Branch | State | Resume note |
+|---|---|---|---|---|
+| {{AGENT_ID}} | {{ROLE_AND_CLASS}} | {{BRANCH}} | {{running / finished / merged / cut off}} | {{NOTE}} |
+
+Branch naming is the project's choice. If a rebase makes a plain push
+fail, push a new branch name (for example a `-v2` suffix); never force-push.
+
+## Human-side items still open
+
+List what only a human can do (merges the tiers reserve, revoking a scoped
+token, approving a live change). Names and dates only, never values.

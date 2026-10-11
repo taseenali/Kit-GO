@@ -728,6 +728,14 @@ following an unwritten practice for the second or third time on a project,
 that's the signal to add it to this list rather than trust yourself (or the
 next agent) to remember it forever.
 
+## Speed mode (optional)
+
+If this project has adopted `docs/SPEED-MODE.md`, its non-negotiable
+guardrails are binding additions to this file, and nothing in it relaxes
+the tiers above: a change that needs a given review or a human merge under
+those tiers needs it in speed mode too. If this section is present but that
+file is not, there is nothing to follow; delete this section.
+
 ## Escalation
 
 If a rule above conflicts with what you're being asked to do, or you're

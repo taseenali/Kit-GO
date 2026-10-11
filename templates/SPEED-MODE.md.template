@@ -68,14 +68,17 @@ table can be silently covered by an existing broad rule; treat it as Full.
 
 - **careful** (Full): fresh adversarial review with real verification, a
   full re-run of the project's check suite, and a human merge where the
-  tiers require one. A fix gets re-reviewed, unless it is narrow, covered
-  by the existing checks, and verified against the real system -- then the
-  check re-run plus a read of the prose is enough.
+  tiers require one. Every fix commit still gets a fresh review, as the
+  rules require; a narrow fix covered by existing checks and verified
+  against the real system may get a lighter-scoped review, never none.
 - **standard** (Standard): one fresh independent review plus green
   automated gates (types, lint, build, tests).
-- **fast** (Light only): green gates plus the author's self-check; a
-  reviewer is added only if a gate is red or the diff turns out to touch
-  something above Light.
+- **fast** (Light only, and only where your tiers already allow merging
+  without a fresh review, such as docs): green gates plus the author's
+  self-check; a reviewer is added if a gate is red or the diff turns out
+  to touch something above Light. A Light change that your tiers treat as
+  needing a fresh review (for example new feature or UI logic) still gets
+  that review.
 
 A profile is a floor. Raising it is always allowed; lowering below the
 class's floor is not.
@@ -208,15 +211,18 @@ record lag the work.
 
 - Speed mode is **discipline plus review, not a mechanical guarantee.**
   Nothing here stops an agent that ignores it.
-- The evidence comes from **one project**: several dozen PRs over about a week,
-  one subsystem, one team. That is a small sample for general claims.
+- The evidence comes from **one project**: several dozen PRs over a few days,
+  across UI, ops and backup work, one team. That is a small sample for general claims.
 - **What was recorded:** blocking findings found before merge, blocking
   findings that escaped, which reviews ran, and rough time and token cost.
   **What was not measured:** a controlled comparison of a mid-tier against
   a strongest-class reviewer on the same Full-class change, and the
   net saving against a careful-only baseline. Time-saved figures in the
   source notes are estimates.
-- No blocking issue escaped to the default branch in that project. That is
-  a reason to keep measuring (`SPEED-MODE-METRICS.md`), not a proof.
+- One blocking defect is known to have escaped in that project: a backup
+  job's dump scope bug that its size check did not catch, found after merge
+  and fixed by adding a content-based check. The first revert condition was
+  therefore arguably triggered. Keep measuring (`SPEED-MODE-METRICS.md`);
+  zero escapes is never a proof.
 - A green check suite proves only what its author thought of. The value of
   an independent reviewer is the cases the author did not.

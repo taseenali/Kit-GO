@@ -67,8 +67,8 @@ Cap: no more than about 2 top-class agents at once, because usage limits are rea
 
 ## The loop
 
-The same sequence for every change. Speed mode adds the parallelism; the review depth
-never drops. Templates: `templates/SPEED-MODE.md.template`,
+The same sequence for every change. Speed mode adds the parallelism; the intended review
+depth does not drop (see Honest limits for where practice fell short). Templates: `templates/SPEED-MODE.md.template`,
 `templates/AGENT-LEDGER.md.template`, `templates/SPEED-MODE-METRICS.md.template`.
 
 1. Plan first. For parallel work, write a lane plan before any agent starts: disjoint
@@ -107,7 +107,9 @@ Measured, one project, from git and the project's own metrics file:
   drafted migration, a concurrency race in a last-admin guard, a breaking change after a
   rebase, defects in a test harness found by static review, and a diagnostic that printed
   part of a password.
-- Escaped blockers (found after merge): 0 recorded.
+- Escaped blockers (found after merge): 1 known. A backup job's `pg_dump` was limited to
+  one table by a stray flag and its size check passed; found after merge and fixed with a
+  content-based check. The metrics log recorded it as 0, which was wrong.
 - Usage-limit interruptions: 3 recorded. One cut off a reviewer and left 10 orphan test
   users, cleaned afterwards. Two cut off builders and cost nothing, because their work
   was already pushed as WIP commits.
@@ -116,9 +118,16 @@ Measured, one project, from git and the project's own metrics file:
 
 Honest limits:
 
-- One project, a small sample, mostly one subsystem. Averages are anecdotal.
-- Wall-clock speedup was NOT measured against a baseline. Only per-review cost and
-  counts were recorded. Do not read this as a measured speedup claim.
+- One project, a small sample. Averages are anecdotal. PR numbers in this file refer to
+  that project's own private repository.
+- The loop above is the intended process. In practice many Standard-class PRs were
+  reviewed only by the lead reading the diff, not by a fresh reviewer, and one Full-class
+  review added no cases of its own. The pre-merge finding counts above mix review,
+  builder and compiler catches, and are not comparable one-to-one with the baseline.
+- The first revert condition (a blocking issue escaping to the default branch) was
+  arguably triggered once, by the backup scope defect above.
+- Wall-clock speedup was NOT measured against a baseline. Per-review cost and counts
+  were recorded, and wall-clock only for a handful of early PRs, with no baseline. Do not read this as a measured speedup claim.
 - The "any secret appears in a prompt, log or checkpoint" revert condition was arguably
   triggered once: the owner pasted a database password into chat (rotated at once).
   The clause is now worded to separate long-lived or broad secrets from deliberate,

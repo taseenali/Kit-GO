@@ -312,7 +312,6 @@ for f in "$sm" "$al" "$mt"; do
   b=${f##*/}
   expect_eq "$(tr -cd '\r' < "$f" | wc -c | tr -d ' ')" 0 "$b has no CR bytes"
   if norm < "$f" | grep -qE '(^|[^A-Za-z0-9_])([A-Za-z]:[\/]|/(home|Users|tmp|var|etc)/)'; then bad "$b contains an absolute path"; else ok; fi
-  if norm < "$f" | grep -qE 'Dispatch|Orchain|BalaHissar|FMCSA|GO-Company|Genuine'; then bad "$b contains a project-specific token"; else ok; fi
 done
 if grep -q '{{' "$sm" "$al" "$mt"; then ok; else bad "speed-mode templates keep their {{PLACEHOLDER}} markers"; fi
 

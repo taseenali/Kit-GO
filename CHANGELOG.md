@@ -14,6 +14,31 @@ real situation that produced it.
 PR and issue numbers in older entries (for example #13) refer to the original private
 repository; they do not exist in this one.
 
+## [2.11.0] -- 2026-10-11
+
+Speed mode becomes a proper, optional part of the Kit, and the Kit now says
+plainly what it is tested with. Why a minor bump: this adds new files (three
+templates and a reference-setup document), which this file's own rule says
+bumps minor. No existing rule, tier or script changes meaning.
+
+Added:
+- `templates/SPEED-MODE.md.template`, `templates/AGENT-LEDGER.md.template`,
+  `templates/SPEED-MODE-METRICS.md.template`: an optional way to run several
+  agents in parallel without lowering any review tier, with pre-registered
+  revert conditions so the claim can be checked rather than assumed.
+- `REFERENCE-SETUP.md`: the exact setup the Kit was built and used with, the
+  measured results, and the honest limits (no wall-clock speedup was measured).
+- A "works best with Claude" notice in the README, with what is and is not
+  claimed.
+- `SETUP-GUIDE.md`: an optional "Adding speed mode" section.
+- `LESSONS-LEARNED.md`: six short lessons from running agents in parallel.
+- Consistency checks for the new files in `tests/kit-go/run.sh`.
+
+Changed:
+- `templates/AGENT_RULES.md.template` and
+  `templates/MODEL-UTILIZATION-PLAYBOOK.md.template` gain a short optional
+  pointer to speed mode. Nothing in them is required.
+
 ## [2.10.0] -- 2026-10-11
 
 First public release, as **Kit-GO** in its own repository

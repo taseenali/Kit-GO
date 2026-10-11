@@ -1,0 +1,736 @@
+# Agent Rules — Binding on Any Agent Working in This Repo
+
+This applies equally to a human contributor and any AI agent (this
+session, a future one, a different provider) that opens a PR, pushes a
+commit, or otherwise acts on **{{PROJECT_NAME}}**. It exists so the repo
+stays safe and predictable regardless of *who* — or *what* — is doing the
+work, and so a newly onboarded agent has a single place to read before
+touching anything.
+
+These are hard rules, not defaults to weigh against convenience. If a rule
+below would block something that genuinely needs to happen, that's a
+conversation to have with a human owner (`.github/CODEOWNERS`), not a
+reason to route around the rule.
+
+## Stage 0 — before any Phase 1 code exists
+
+**If `STAGE-0-RESEARCH-ENRICHMENT.md` in this repo has no completed exit
+sign-off yet, stop and run it before writing Phase 1 (first real,
+load-bearing) code.** This applies to a brand-new project, or a genuinely
+new product/feature direction within an existing one — not routine
+feature work on an already-cleared product, which stays governed by the
+rest of this document instead. See that file for the full process; the
+two things worth knowing before you open it:
+
+- **Legal/compliance research documented there never blocks code** — only
+  the live execution of a specifically legally-gated action waits on a
+  real answer, and only that action.
+- **A missing external account/endpoint never blocks code either** — build
+  against a pluggable interface, connect the real thing once it exists.
+
+If `STAGE-0-RESEARCH-ENRICHMENT.md` doesn't exist in this repo yet and
+this is a new product direction, create it from
+`templates/STAGE-0-RESEARCH-ENRICHMENT.md.template` and run the process
+before continuing — don't skip it because the pressure is to start
+building.
+
+## Git operations
+
+- **Never push directly to `main`.** Every change goes through a branch
+  and a pull request. Real branch-protection enforcement of this depends
+  on your GitHub plan and repo visibility — private repos on the free tier
+  do not get GitHub-enforced branch protection (confirmed limit, see this
+  kit's `LESSONS-LEARNED.md`). **If that's your situation, don't rely on
+  discipline alone — pair this rule with `templates/pre-push-hook.template`**
+  (a local git hook that mechanically rejects a direct push to `main`
+  from any clone that has it wired, regardless of whether an agent's
+  context happens to include this rule at the time). Written policy
+  plus memory is exactly what a real incident showed can lapse on some
+  changes while working correctly on others in the same session — see
+  `LESSONS-LEARNED.md`'s "Multi-repo / multi-codebase products" section
+  for the fullest account, since it's especially sharp when the product
+  spans more than one repo and this rule lives in a repo the current
+  session isn't rooted in.
+- **Never force-push** to `main` or to a branch you didn't create.
+- **Never delete a branch or PR that isn't yours** without being
+  explicitly told to.
+- **Any destructive git operation** — `reset --hard`, history rewrite,
+  branch deletion, force-push — needs explicit human approval **in that
+  moment**. Never automatic, never because it seemed like the convenient
+  path forward.
+
+## Secrets and data
+
+- **Never commit `.env`, tokens, credentials, or API keys.** `.gitignore`
+  covers the known paths — that's a safety net, not a substitute for
+  checking your own diff before pushing.
+- **Never commit anything under `{{DATA_DIR}}`** (generated/scraped/large
+  data — fill in the real path(s) for this project, or delete this bullet
+  if not applicable). Regeneratable data has no reason to live in git
+  history, and if it contains any real personal/business data, it has
+  legal/privacy weight a git commit shouldn't casually carry.
+
+## Code quality and honesty
+
+- **Every PR touching real logic includes or updates tests**, and the full
+  suite passes locally before the PR is opened — not "should pass,"
+  actually run and confirmed. Paste the real output in the PR template's
+  "Tests run" section.
+- **Never fabricate test results, data, or verification claims.** If
+  something wasn't checked, say so. The difference between "verified" and
+  "assumed" has to survive in code changes, not just in conversation.
+- **Every PR that changes behavior, data handling, or schema updates the
+  relevant docs in the same PR** — not a follow-up, not "docs later."
+
+## Scope
+
+- **Stay inside the task or issue you were given.** Don't restructure
+  unrelated parts of the repo, rename things, or "clean up while you're in
+  there" unless that's what was actually asked for. Small, reviewable PRs
+  over large speculative ones.
+
+## Finding a bug in the governance kit itself (not in {{PROJECT_NAME}})
+
+This project's `.github/AGENT_RULES.md`, `scripts/setup-hooks.sh`,
+`scripts/verify-setup.sh`, and everything else copied in from
+`taseenali/Kit-GO` (or whichever copy this project
+uses) are, from this repo's point of view, *upstream* — the same
+"stay inside the task you were given" scope rule above applies to them,
+not just to third-party dependencies in the usual sense.
+
+**Scope of this rule:** it applies to a downstream project using the
+kit — like this one. **It does not apply to a session working directly
+inside the kit's own repository** (a deliberate kit-maintenance session);
+that session's whole job is fixing the kit, so nothing here should be
+read as telling it to defer its own work to itself.
+
+**Finding a real bug, gap, or bit of friction in the kit itself while
+doing unrelated work on {{PROJECT_NAME}} is not, by itself, a reason to
+go open a PR against the kit's own repository.** (The same goes for a
+genuinely reusable *idea* — see "This covers more than defects" below.)
+Record it in
+`docs/KIT-ISSUES-LOG.md` (from `templates/KIT-ISSUES-LOG.md.template`)
+instead, and keep working on whatever this project's actual task was.
+This is a deliberate change from this kit's own earlier default of
+propagating every fix upstream immediately — that default produced real,
+useful fixes, but also meant unrelated project work kept turning into
+kit maintenance as a side effect, every time, with no separate decision
+ever made about whether that was the right use of the moment.
+
+**This covers more than defects.** A genuinely reusable idea this
+project builds or discovers — a real improvement or lesson the kit
+doesn't have yet, not just something broken — gets the same treatment:
+recorded in `docs/KIT-ISSUES-LOG.md`, not turned into an upstream PR as a
+side effect of unrelated work. That log's entry format has a note on how
+to record an idea that isn't defect-shaped (no symptom, no workaround);
+use it rather than forcing an idea into a bug report's shape. The
+section's title says "bug" for stability — other files cite it by that
+exact heading — but the rule covers both.
+
+- **If `docs/KIT-ISSUES-LOG.md` doesn't exist in this project yet**,
+  create it from `templates/KIT-ISSUES-LOG.md.template` first (filling
+  in `{{PROJECT_NAME}}`), then record the entry — don't skip recording
+  just because the file hasn't been copied in yet, and don't silently
+  work around the kit bug with nothing written down anywhere.
+- **Tell the human, in the same turn, that you recorded an entry** —
+  don't let this happen silently in the background. State plainly: an
+  entry was added, and it needs to reach the kit's maintainer somehow
+  (a manual share by default, or the optional automated notification if
+  this project has it wired — see `docs/KIT-ISSUES-LOG.md`'s own "How an
+  entry reaches the kit's maintainer" section for both, and point the
+  human at that section rather than re-explaining it inline every time).
+  A recorded-but-never-mentioned entry is barely better than one that
+  was never recorded at all — the human has to actually know it happened
+  to do anything with it.
+- **If a collaborator who isn't the kit's maintainer asks for the
+  real-time exception below anyway** ("just fix it now, I'll tell them
+  later"), decline and record-and-defer instead, the same as if they
+  hadn't asked — the exception is the maintainer's own call to make in
+  their own session, not something anyone else can authorize on their
+  behalf, however reasonable the request sounds in the moment.
+
+**The one exception — fixing it in the kit's repo right now, in this
+same session — is only ever the kit maintainer's call, made explicitly,
+in the moment.** It is never something an agent decides on its own the
+situation "clearly" warrants, even in a session the maintainer is
+otherwise directing, and even if the fix is small, obviously correct, or
+identical to one already made elsewhere. If that exception is used,
+still add the entry to `docs/KIT-ISSUES-LOG.md`, noting that it was
+resolved at runtime and by whom — the log should stay a complete record
+either way, not just of what got deferred. See
+`docs/KIT-ISSUES-LOG.md`'s own header for the mechanical reality behind
+this **today**: anyone other than the kit's maintainer almost certainly
+doesn't have push access to the kit's repository anyway, so for them
+this is as much a hard fact as a policy right now. That's a fact about
+the current, single-maintainer state of the kit repo, not a permanent
+guarantee — if the kit repo ever gains a second person with write
+access, this stops being mechanically true and becomes pure discipline
+for them too; don't let the current mechanical backstop read as more
+durable than it actually is.
+
+## Attribution
+
+- {{ATTRIBUTION_LINE}} <!-- e.g. "Every commit/PR from an AI agent ends with a `Co-Authored-By:` trailer identifying the assisting model." -->
+
+## Review rigor scales with what's actually at stake
+
+Not every change needs the same scrutiny. A large engineering org
+spreading review across multiple people over days or weeks makes sense
+there because many people touch the same code without live coordination,
+no one person can hold the whole system in their head, and a bad merge has
+org-wide blast radius. That often does **not** describe a small or
+solo-plus-agent project — copying the *form* of heavy process (artificial
+delay, reviewers that don't exist) is theater, not safety. The *principle*
+is real and portable: a change should be checked by something other than
+whatever wrote it, and how hard it's checked should scale with what
+actually breaks if it's wrong. Three tiers:
+
+**No exception for a PR whose framing looks like Tier 0/1.** Any change
+that touches this file (this project's `AGENT_RULES.md`),
+`.github/CODEOWNERS`, `MODEL-UTILIZATION-PLAYBOOK.md`, this project's
+auto-loaded `CLAUDE.md`/`AGENTS.md`, `.github/workflows/**`/
+`.githooks/**` (this project's own CI and git-native enforcement
+mechanisms — as load-bearing as any of the files above, and this
+applies to every author, not just a bot editing them — see "Bot/CI-
+authored PRs" below), or, if this project installed Kit-GO,
+`docs/KIT-GO.md`, `scripts/kit-go.sh` and `.claude/**` (agent-facing
+command definitions that grant pre-approved command execution — see the
+Tier 2 definition below) — including a change that is *only* about how the
+tiers themselves work, a one-line CODEOWNERS edit that looks like pure
+config, or a playbook or CLAUDE.md edit that looks like "just" a
+wording tweak — is Tier 2 per the list below, unconditionally, the
+moment it touches any of these files. The tier a PR's own commit
+message or title implies is not authoritative; what the diff actually
+touches is.
+
+**Tier 0 — Low stakes.** Docs-only changes, wording fixes, non-binding
+clarifications. **The full test suite is run and reported green before
+self-merge — unconditionally, not "if applicable."** A PR *labeled*
+docs-only is exactly the framing a change that quietly also touches code
+(or touches a doc a test asserts on) would hide behind, and a path-
+filtered CI workflow never triggers at all on a pure-docs diff — so
+"CI didn't run" cannot stand in for "tests passed" here (see "Self-merge
+preconditions" below). Running the suite is cheap; skipping it on a
+labeling assumption is the actual risk. **Self-merged by the agent**
+once the suite is green, no human click needed.
+
+**Tier 1 — Real changes.** New features, application logic. Full suite
+must pass, AND get an independent review pass before merge — a **fresh**
+invocation of an AI code-review pass (not the same continuous conversation
+that just wrote the change immediately confirming its own work), or a
+second person if one is actually available. That distinction — fresh vs.
+same-context — is the real mechanism, not a formality: the value of
+"someone else checks it" comes from a genuinely separate, decorrelated
+pass with no stake in the implementation already being right. A fresh
+review pass gets you most of that even from the same underlying model.
+**Self-merged by the agent once that fresh pass is clean (zero unresolved
+confirmed findings) and CI is green — no human click required.** A human
+clicking "approve" on something they haven't actually reviewed isn't a
+second check, it's theater that's worse than not having the step at all —
+if a project finds itself in that pattern, the fix is to make Tier 1
+self-merge explicit (as here), not to keep the empty click. The agent
+still reports what merged, in a summary, so the human stays informed
+without having to act on every PR.
+
+**Tier 2 — Load-bearing / high blast radius.** Database schema changes,
+{{LOAD_BEARING_LOGIC_DESCRIPTION}} (name the specific fragile/critical
+logic in *this* project — a pricing engine, an auth check, a data-
+correction rule, whatever it actually is here), anything touching real
+user/customer data handling, secrets, legal-compliance-adjacent behavior,
+or this document itself, `.github/CODEOWNERS` (the file that
+defines who Tier 2 sign-off goes to — an agent must not be able to
+self-merge a change to its own accountable human; list it here
+explicitly, don't rely on a reader inferring it), or
+`MODEL-UTILIZATION-PLAYBOOK.md` (governs model selection for every task
+in this project, including Tier 2 review itself — a corrupted edit to it
+is exactly as load-bearing as one to this document), this project's
+auto-loaded `CLAUDE.md`/`AGENTS.md` (whatever an agent reads automatically
+at session start governs every task in this project just as much as the
+playbook does — the same reasoning, applied to a different file), or
+`.github/workflows/**`/`.githooks/**` (this project's own git-native and
+CI enforcement mechanisms — if this project has no platform-level branch
+protection, these files ARE the primary enforcement, not a backup, so a
+corrupted or weakened edit to either is exactly as load-bearing as one
+to this document; applies to every author, human or bot — see "Bot/CI-
+authored PRs" below for why a bot's own edits here don't get an easier
+tier), or, **if this project installed Kit-GO**, `docs/KIT-GO.md` (the
+playbook agents follow when a user types `Kit-GO`), `scripts/kit-go.sh`
+(auto-run by the slash commands), and `.claude/**` (slash-command files
+carry `allowed-tools` pre-approvals — a change to them can make an agent
+execute something without a prompt): the same reasoning as `MODEL-UTILIZATION-PLAYBOOK.md`
+and `CLAUDE.md`/`AGENTS.md` above — whatever an agent reads or runs
+automatically governs every task, so an edit to it cannot be an agent-
+self-merged "wording tweak". Tier 1's fresh review
+pass, PLUS: if a multi-agent/deeper-review mode is available and
+user-triggerable (several independent reasoning processes on the same
+diff — the closest available analog to multiple developers reviewing),
+**it's required by default, not merely recommended** — the agent requests
+it and waits for the result rather than recommending it once and moving
+on. The agent still cannot self-invoke it if doing so requires the user's
+own action/billing. **Three real outcomes here, not two:** it runs and
+its findings get addressed; it's genuinely unavailable **and the human
+has confirmed that, not just the agent** (see "Local multi-pass review"
+below for exactly what confirmation means) and the fallback stands in
+instead, clearly labeled as such; or the human explicitly waives **real
+deeper review of any kind — the tool AND the fallback, not one or the
+other** — for a specific PR they judge doesn't need either. A waiver of
+"the tool only" that leaves the fallback owed is not a real category —
+if the human wants the free local option instead of paying, that's
+outcome two, not a waiver. Any waiver is **narrow by design**: stated at
+the time, for that one PR only, never a standing policy, never inferred
+from a prior PR's run. Routine waiving is a signal to revisit
+the Tier 2 boundary itself, not evidence the requirement was too strict.
+Tier 2 also requires **explicit, informed human sign-off before merge — never
+self-merged by an agent, deeper review or not** (what that means exactly —
+the agent never executes the merge itself, even after the human says
+yes — is spelled out in "What 'never self-merged by an agent' actually
+means" below; read it, the short phrase alone is ambiguous). "Informed" matters: the
+agent presents a risk summary in the "Risk summary — required format"
+below (what changed, what was checked, residual risk, a recommendation,
+and what it would still need to check if challenged) instead of a raw diff, so the human's decision is
+real and fast, not a blind click on something nobody read. The part that
+actually matters: if something about a Tier 2 change is genuinely unclear
+or contested, **it's allowed to sit unresolved** rather than get merged on
+a deadline. A slow Tier 2 change is a smaller mistake than a rushed one.
+
+### What "never self-merged by an agent" actually means (Tier 2)
+
+**It means the agent never executes the merge itself — not "the agent
+may merge once the human says yes."** The short phrase is genuinely
+ambiguous between those two readings (is it the *decision* or the
+*execution* that must not be the agent's?), and it has caused the same
+real incident independently on more than one project: an agent that could
+state the rule correctly on demand still treated a human's informal "yes,
+merge it" / "go ahead" as authorization to run the merge command itself.
+Informal sign-off language approves the **decision** to merge. It does not
+authorize the **agent** to be the one who executes it — those are
+different things, and the first does not imply the second.
+
+Concretely, for a Tier 2 PR:
+
+- The agent's last action is the risk summary (see "Risk summary —
+  required format" below) and, once the human signs off, the exact
+  ready-to-run command (e.g. `gh pr merge <number> --squash
+  --delete-branch --match-head-commit <the-reviewed-commit-sha>`) for the
+  human to run in their own terminal. The `--match-head-commit` pin makes
+  GitHub refuse the merge if the branch has moved since the commit that
+  was reviewed. **The agent pushes nothing to the branch after sign-off;**
+  any new commit — including a branch update or rebase onto the base —
+  voids the sign-off and restarts the protocol from the review step.
+- **The agent does not merge the PR itself, and does not cause it to end
+  up merged, by any mechanism — not after a verbal "yes," not after
+  "please merge it," not even after an explicit, direct instruction to
+  do so.** "By any mechanism" is load-bearing, not filler: it covers
+  `gh pr merge`, enabling GitHub's auto-merge (the agent triggers it,
+  GitHub merges later — not a technicality that satisfies this rule), a
+  direct REST/GraphQL call to the merge endpoint, driving the merge
+  button through a browser tool, delegating the merge to another tool, a
+  subagent, or a CI workflow the agent authored, and landing the same
+  change on the default branch some other way (a direct push, a
+  fast-forward) that isn't literally "merging the PR" but has the
+  identical effect. If the change ends up on the default branch and the
+  agent set that in motion, it's covered, whichever tool or intermediary
+  ran the last step.
+- This is a hard rule with no situational exception an agent gets to
+  recognize on its own. If a human wants it changed, that's an edit to
+  this document itself (Tier 2, same protocol, and the same restriction
+  applies to merging *that* PR).
+- **Honest limit: this is agent discipline, not a mechanical control.**
+  A post-hoc check on who merged (the PR API's `merged_by`) cannot tell a
+  human click from an agent running `gh pr merge` when the agent's CLI
+  session authenticates as the same GitHub account as the human — the
+  common solo-owner setup (see `PASS-0-ENVIRONMENT-DISCOVERY.md` §4). A
+  real technical backstop needs a separate identity for agent-initiated
+  git operations, which is its own design decision, not something this
+  paragraph provides. Some agent hosts also block an unreviewed
+  agent-initiated merge at the tool-call level; that is a property of
+  that host, not of this document, and shouldn't be assumed present
+  elsewhere.
+
+### Risk summary — required format
+
+Every Tier 2 risk summary (and any other "ready for sign-off"
+presentation) has all five parts below, in this order. Part 5 is not
+optional and not satisfied by a checklist-complete summary alone. For
+Tier 0/1 self-merges there is no sign-off presentation, so **part 5
+alone is required** — in the PR body and again in the after-merge
+report (see "Self-merge preconditions" below).
+
+1. **What changed.**
+2. **What was checked** — and how (a real command and result, not "looks
+   fine").
+3. **Residual risk** — what could still go wrong.
+4. **Recommendation.**
+5. **If challenged — what I'd still need to check.** Before presenting
+   anything as ready, ask: if the human pushed back right now with "are
+   you sure it's ready and safe?", what would I actually go and find?
+   Write down the real answer — specific unverified claims, paths never
+   executed, interactions with other open work not traced, anything that
+   was only read or reasoned about rather than run. If the honest answer
+   is "nothing," say what was ruled out and how, rather than leaving the
+   section blank or writing "none."
+
+Part 5 runs, not just exists (and for Tier 2, the whole summary is
+re-presented, not just part 5): (a) the first time anything is
+presented as ready; (b) again after **every** fix commit made in response
+to a review finding, before re-presenting (a fix is exactly when
+confidence quietly resets to "should be fine now" without being
+re-earned); and (c) immediately before a Tier 0/1 self-merge, since time
+and further commits can pass between "ready" and "merging." **Honest
+limit:** whether the agent really interrogated itself is not mechanically
+checkable from outside — what *is* checkable is that this section is
+present, specific, and not boilerplate. A reviewer or human reading a
+generic or empty section should treat that as a defect in the summary.
+
+### Self-merge preconditions and transparency (Tier 0/1)
+
+Before an agent self-merges anything, ALL of the following hold:
+
+- **The full suite has actually been run and reported green for this
+  exact change** — via CI when the PR's changed paths trigger it, or run
+  locally with the real output pasted into the PR otherwise. "CI didn't
+  trigger for these paths" is never read as "tests passed." This
+  includes Tier 0: a docs-only PR is the case where path-filtered CI most
+  often never runs at all.
+- The "If challenged — what I'd still need to check" question (see "Risk
+  summary — required format" above) has actually been asked and
+  answered, immediately before merging, not just at first presentation.
+- For Tier 1: a fresh review pass has actually run against this PR's
+  **final head commit** — including any fix commit made in response to an
+  earlier pass's findings; fixing findings does not inherit the review
+  that found them — and reports zero unresolved confirmed findings (a plausible-but-uncertain finding
+  gets a documented judgment call, not silent dismissal).
+- The tier assignment is still correct as of the final diff — see "Tier
+  re-evaluation" below.
+
+**After merging** (not a precondition — this stays separate from the
+"before" list above on purpose): the agent reports what happened in the
+same turn — what merged, why, what the fresh review checked, and the
+answer to the "if challenged" question above — so a self-merge is always
+visible, never silent.
+
+### Tier re-evaluation
+
+A PR's tier is decided by its **final diff content**, not by what it was
+expected to touch when the branch was opened. When a change is genuinely
+ambiguous between two tiers, **default to the higher one** — treating a
+Tier 1 change as Tier 2 costs one extra review pass; treating a Tier 2
+change as Tier 1 skips the one thing (human accountability) that can't be
+recovered after the fact.
+
+### Bot/CI-authored PRs
+
+A PR opened by a bot account (a dependency-update bot, a deploy bot, any
+non-human, non-primary-agent actor) is evaluated by **the exact same
+Tier rules as any other author, based on what the diff actually
+touches** — there is no separate, easier tier for a bot. A dependency
+version bump is real, executable code (arbitrary code can run at
+install time via package lifecycle scripts), not a docs-only change —
+it does not qualify for Tier 0 just because a bot wrote it. An earlier
+draft of this rule proposed exactly that carve-out (Tier 0 for "a
+dependency bump with passing CI") and a fresh + adversarial review pair
+caught two real problems with it before it shipped: it contradicts this
+document's own core principle that a change should be "checked by
+something other than whatever wrote it" (a bot's own passing CI is not
+that check), and "passing CI" is often a hollow qualifier in a project
+that has no real test-running CI job yet — don't let a green check that
+only verifies "a PR exists" or "a workflow ran" be mistaken for "this
+change was actually reviewed." A compromised or malicious dependency
+update auto-merged with zero review is a real, not hypothetical, supply
+chain risk. Treat a bot's PR with the same scrutiny as a human's,
+scaled to what it actually changes — often Tier 1 (needs a fresh review
+pass) at minimum for anything beyond pure lockfile/version-string
+changes, and Tier 2 if it touches any of the files already named as
+unconditionally Tier 2 in the "Tier 2 — Load-bearing / high blast
+radius" definition above — that list applies to every author, bot
+included; it isn't restated here to avoid the two copies drifting apart
+(a bot bumping a pinned GitHub Action version inside a workflow file is
+still touching this project's own governance infrastructure, not a
+docs-only change, however routine it looks).
+
+### Tier 2 approval protocol
+
+1. Fresh review pass, findings fixed or explicitly triaged.
+2. Deeper/multi-agent review requested and completed, **or, if it's
+   genuinely unavailable and the human has confirmed that** (billing, a
+   broken connector — see "Local multi-pass review" below for what
+   confirmation actually requires) and doesn't want to pay to unblock it,
+   the **local multi-pass fallback** below — or the human explicitly
+   waives real deeper review of any kind (the tool AND the fallback) for
+   that specific PR, stated at the time. Three real options, not two;
+   unavailability is not automatically a waiver, and an agent's own
+   belief that the tool is unavailable is not the same as the human
+   confirming it.
+3. Any findings (from step 2 or the fallback) verified against the real code, not trusted
+   blind, and fixed or explicitly declined with reasoning. **A fix
+   written in response to findings is itself a new change: the fresh
+   review in step 1 applies again, separately, to each fix commit — not
+   just to the original change.** Fixing findings does not inherit the
+   review that found them; whether the fix actually did what the findings
+   called for, without introducing a new problem, has never been checked
+   until something other than the agent that wrote it checks it. This is
+   most important for self-referential changes (a document that governs
+   the review process itself), where a subtle, well-intentioned fix can
+   quietly open exactly the gap the original review was closing.
+4. Agent writes a risk summary in the "Risk summary — required format"
+   above: what changed, what was verified, what the residual risk is, a
+   direct recommendation, **and what it would still need to check if
+   challenged.**
+5. Human reads the summary and makes the actual call — never skipped,
+   rushed, or delegated to another agent (see the table below:
+   accountability that requires a named human is the one thing this
+   whole tier system cannot manufacture out of more review). **The human
+   then runs the merge themselves** — see "What 'never self-merged by an
+   agent' actually means" above; the agent's work ends at the risk
+   summary and the ready-to-run command.
+
+### Local multi-pass review — the deeper-review fallback
+
+**This is the Tier 2 review instance of a general rule — see
+`MODEL-UTILIZATION-PLAYBOOK.md` for the full framework covering model
+choice across every task in this project, not just this one case.** The
+two documents govern the same territory from different angles (review
+rigor vs. model choice) and must never disagree — a conflict between
+them is a bug to fix on sight.
+
+A deeper/multi-agent review mode is often a real, billed service — it can
+become genuinely unavailable (usage credits exhausted, a connector
+broken) with no fix the agent can perform. When that happens and the
+human doesn't want to spend to unblock it, this is the fallback for this
+section's own step 2 — real and defined, not an ad hoc "just do another
+fresh pass":
+
+1. **Confirm unavailability with the human before doing anything else —
+   a one-shot failure is not "genuinely unavailable."** A single failed
+   invocation (a timeout, a transient error) is not sufficient on its own
+   to declare it unavailable and move to the fallback — report the real
+   failure and ask the human whether to retry, unblock it, or use the
+   fallback. The one exception: the human has already stated directly
+   that it's unavailable/they won't pay for it — that statement itself is
+   the confirmation, nothing further to ask. What's never acceptable: an
+   agent unilaterally deciding "unavailable" from its own side and
+   proceeding straight to the fallback without the human's actual
+   knowledge or say.
+2. The existing fresh review pass (already required, this checklist's
+   own step 1 above) stands as-is.
+3. **Before running anything on a different model, tell the human
+   plainly**: that a model switch is about to happen, and a one-line
+   reason why. This step comes *before* the pass it describes, not
+   after — never a silent model change, then a mention.
+4. **One additional pass on a model that's actually different from
+   whatever ran step 2**, if the agent framework supports a model
+   override for a sub-invocation — explicitly instructed to review
+   adversarially: hunt for problems, don't confirm the work. The
+   requirement is *difference from step 2's model*, not a fixed choice —
+   if the calling session is already running on the model you'd default
+   to for this pass, use a different one instead, or the two passes share
+   the same blind spots and the fallback's whole point is lost. This is
+   the substitution that actually matters: the same model re-prompted
+   still shares that model's blind spots; a genuinely different model
+   checking the same diff is real decorrelation, closer to what multiple
+   independent developers (or a real multi-agent review mode) provides
+   than any amount of same-model re-prompting.
+5. Findings from both passes deduped and combined, verified against the
+   real code exactly like this checklist's own step 3 would treat them.
+6. **The risk summary explicitly labels this "local multi-pass fallback,
+   not [the deeper review tool]"** — never presented as equivalent. Name
+   the actual models that ran, never a fixed phrase copied regardless of
+   what actually ran — stating a model that didn't run is a fabricated
+   verification claim.
+
+What this still doesn't reach — true of this two-model fallback exactly
+as much as any single-agent pass, since neither is a human: independent
+human knowledge, bus factor, and accountability that requires a named
+human. It closes more of the "multiple independent reasoning processes"
+gap than same-model multi-pass would, but it's not the real deeper-review
+tool, and the risk summary must say so.
+
+### Maturity triggers — when this whole policy must be revisited
+
+The tier boundaries and self-merge authority above are calibrated to
+*this project's current state* — fill in what that actually is (solo
+owner? small team? nothing in production yet?). That calibration is not
+permanent; it's the current entry in a living progress graph. Trigger
+conditions to revisit it explicitly, rather than assume it's fine
+forever — edit this list to fit the real project:
+
+- Real production deployment / live customer-facing traffic.
+- A second human, or an independently-operating agent session, joins —
+  Tier 1's self-merge authority in particular is calibrated to a solo,
+  synchronous, full-context situation that stops holding once it isn't.
+  **Don't detect this by inferring who is at the keyboard from session
+  or environment fields.** A field like the session context's
+  `userEmail` (or a git `user.email`, an OS username, an account that
+  changed partway through a session) reflects the local account/session
+  context, not necessarily a different real person. A real session took a
+  changed `userEmail` at face value, told the owner a second contributor
+  had joined, and wrongly invoked this very trigger — it was the same
+  person on a different local account. The real signals are a PR or review created by that person's own GitHub
+  account (the authenticated actor — not commit author metadata, which
+  comes from the same local `user.email`), and only if no agent shares
+  that login (see `PASS-0-ENVIRONMENT-DISCOVERY.md` §4), or an explicit
+  statement from the human; when it matters and neither is
+  available, ask rather than guess.
+  **This is also the trigger for building real mechanical detection of
+  who actually merged a Tier 2 PR** (a `merged_by`-vs-`CODEOWNERS`
+  check, see `LESSONS-LEARNED.md`'s "second-human self-merge" entry) —
+  don't build that mechanism before this trigger fires. On a solo-owner
+  project it would be structurally unable to produce a single true
+  positive (author, merger, and sole owner are always the same login),
+  which is worse than not having it: a check that can never turn red
+  reads as coverage that doesn't exist (found by a fresh + adversarial
+  review pair, 2026-09-23, reviewing a plan that tried to build this
+  mechanism too early).
+- Data scope expands to include anything with its own privacy/compliance
+  weight this project didn't have before.
+- The first hired contributor whose access needs real boundaries.
+- The first real transaction/dollar moves through the system.
+
+### What "review by someone other than the author" actually buys you — and what a single agent can and can't reach
+
+Worth naming honestly rather than assuming AI review is either a full
+substitute or worthless. In practice, multiple human developers on a team
+now very often each work with their own AI agent too — so "a different
+developer reviewed it" is frequently, in practice, already "a different AI
+session, with different context, reviewed it." What actually matters was
+never strictly human-vs-AI; it's whether the check ran as a genuinely
+separate process with an incentive to find problems, not the same context
+that produced the change nodding at itself.
+
+| What real independent review provides | Reachable with a fresh single-agent pass?¹ |
+|---|---|
+| Breaks anchoring bias (no stake in the implementation being right) | **Yes** — a fresh invocation, not the authoring context |
+| Adversarial incentive (looks for problems, not confirmation) | **Yes** — if explicitly instructed to hunt for problems |
+| Time/context decorrelation (not mid-flow on the same problem) | **Yes** — a separate invocation |
+| Multiple independent reasoning processes on the same diff | **Partially, and not by a single pass**¹ — a multi-agent review mode gets closer, but if it needs the user's own trigger/billing, don't assume it's always run. When it's genuinely unavailable (and the human has confirmed that), the local multi-pass fallback — two coordinated passes on two different models, not one — closes more of this than same-model re-prompting would, though still less than a real multi-agent mode |
+| A second human's independent lived knowledge / org memory | **No** — not achievable by AI review at all, no matter how many passes or which model(s) run them; the gap is "not a human," not "same model twice" |
+| Bus factor / knowledge diffusion across actual people | **No** — only a real second person reading the change does this |
+| Accountability that specifically requires a named human | **No** — this is exactly why Tier 2 keeps explicit human sign-off regardless of how good the AI review is |
+
+¹ Every other row in this table is genuinely reachable by one fresh pass.
+The "Multiple independent reasoning processes" row is the deliberate
+exception — its own answer says "not by a single pass," and the local
+multi-pass fallback that partially reaches it is explicitly two
+coordinated passes on two different models. Don't read this column
+header as claiming that row's partial answer comes from one pass too.
+
+**So:** a fresh, adversarially-framed review pass is a real, achievable
+substitute for Tier 1 — not a stand-in to skip, an actual mechanism that
+closes most of the anchoring-bias gap, and specifically what makes Tier
+1's self-merge authority (above) a real safeguard rather than nothing at
+all. It is **not** a substitute for Tier 2's human sign-off, because the
+remaining gaps (independent human knowledge, accountability) aren't
+things more or better AI review can close — no agent, fresh context or
+not, changes that. If real collaborators join later, Tier 1's self-merge
+authority is one of the specific things to revisit — see "Maturity
+triggers" above, and any other provisional limit noted in this document
+(branch protection, etc.) gets the same honest re-check, not left
+silently assumed fine forever.
+
+## Definition of Done — every standing practice, every time
+
+Every project accumulates practices that never got written down as rules —
+a docs-sync habit, a place answers get archived, a testing ritual — and
+because they're unwritten, they're the first things to slip under time
+pressure, even after being followed correctly many times in a row. This
+section exists to close that gap: once a practice is real and repeated on
+this project, it graduates onto this checklist and gets the same binding
+status as the git/secrets/testing rules above — checked every time a task
+or PR is reported done, not weighed against convenience, not skipped
+because it wasn't the stated focus of the current task.
+
+**Starter checklist — edit to match what this project actually does:**
+
+- [ ] **{{ANSWER_ARCHIVE_LOCATION}}** — if the user asked a question or got
+  a substantive explanation/guide/decision this turn, it's saved to the
+  project's answer archive (if one exists) in the same turn, not deferred.
+- [ ] **Docs sync.** If this change affects what the system does, what it
+  knows, or how it's used, the relevant docs are updated in the same PR —
+  never "docs later."
+- [ ] **Collaborator log updated** (if this project uses one — see
+  `docs/collaborators/<your-username>.md`, `templates/COLLABORATOR-LOG.md.template`).
+  A dated entry, signed, naming whether an AI agent did the work and
+  which one — not a restatement of the PR title.
+- [ ] **Open research queue checked** (see `OPEN-RESEARCH-QUEUE.md`, if
+  this project uses one). Before starting any pass sized beyond a small
+  fix, check it for anything worth a fresh attempt — research stays ahead
+  of the build, not reactive to it. A stalled question is never described
+  as "exhausted" permanently, only "no new angle found yet." Update the
+  queue with any new attempt's real result, resolved or not.
+- [ ] **A mixed batch of findings/requests is triaged explicitly, not
+  answered as one undifferentiated pile.** When a turn surfaces several
+  things at once, the response itself names, for each one, which of
+  three categories it's in — already confirmed fine and needing nothing,
+  genuinely actionable, or real but deliberately deferred — clearly
+  enough that a reader could check the categorization without
+  re-deriving it themselves. That naming is the actual, checkable gate
+  this item requires: read the turn back — does it say, explicitly,
+  which category each item landed in, or does the reader have to infer
+  it from what got acted on? How the response is then organized around
+  that naming (direct answers before a plan, actionable items grouped
+  into phases when the work has a real sequence) is good practice worth
+  doing, but is guidance, not a second gate this checklist item enforces
+  — the requirement is the honest categorization, not a specific layout
+  for presenting it. Only the categorization half is kept to the "small,
+  safe default" standard this kit applies before adding a standing
+  rule (see this kit's own `LESSONS-LEARNED.md` — a downstream project
+  copy of this document won't have that file locally, but the test
+  itself is short enough to restate here: a standing "always do X" rule
+  is only safe to leave standing if X is genuinely small and low-cost;
+  naming a category is, laying out a whole response structure a
+  particular way is a bigger claim than this item makes).
+- [ ] **Tests actually run.** The real suite was executed this turn, and
+  the count/result quoted is what actually came back — not estimated, not
+  carried over from memory of an earlier run.
+- [ ] **Review tier assigned and honored** per "Review rigor" above,
+  including Tier 1's fresh review pass actually invoked and Tier 2's full
+  approval protocol (deeper review — or, if genuinely unavailable **and
+  the human has confirmed that, not just the agent's own belief**, the
+  local multi-pass fallback, clearly labeled as such — risk summary
+  including its "If challenged" part, real human sign-off, and the
+  merge command handed to the human rather than run by the agent — see
+  "What 'never self-merged by an agent' actually means") actually
+  followed — not just recommended and left there.
+- [ ] **Branch → PR → CI → merge**, no direct push to `main` — including
+  for changes that feel too trivial to bother. Tier 0/1 self-merge once
+  their preconditions hold, reported to the human afterward, not asked as
+  a question first. Bigger PRs covering more real work per pass are fine
+  — but each merges promptly on its own once ready; never hold multiple
+  PRs open to merge collectively, which only grows conflict risk the
+  longer it's deferred.
+- [ ] **A kit bug — or a genuinely reusable idea the kit doesn't have
+  yet — is recorded, not fixed in passing.** If this task surfaced a real
+  bug, gap, or reusable improvement/lesson in the governance kit itself
+  (not in this project's own domain), it's recorded in
+  `docs/KIT-ISSUES-LOG.md` before the task is called done — see "Finding a
+  bug in the governance kit itself" above (the same file and rule cover a
+  good idea worth the kit's attention, not just a defect). It is *not*, by default, propagated into a PR against
+  the kit's own repository as a side effect of this task; that only
+  happens when the kit's maintainer explicitly directs it in the moment,
+  and even then the log still gets the entry, marked as resolved at
+  runtime.
+- [ ] **Durable-guidance capture.** If the user gave guidance this turn
+  that should hold beyond this single conversation (a correction, a
+  confirmed approach, a standing fact), it's captured somewhere that
+  survives the conversation ending — a memory system, a rules file,
+  wherever this project's agents actually persist that kind of thing — not
+  left for a future session to rediscover the same ground.
+- [ ] **Honesty check.** Every claim of "done," "confirmed," "N tests
+  passing," or "verified" in this turn's summary is something actually
+  checked in this turn — not inferred, not remembered, not assumed still
+  true from earlier in the conversation.
+
+**Why this exists, plainly:** the failure mode isn't any single missed
+item — it's a real one that's individually small and gets caught, over and
+over, precisely because it never got written down as something to check.
+Catching misses after the fact doesn't scale. Once you notice yourself
+following an unwritten practice for the second or third time on a project,
+that's the signal to add it to this list rather than trust yourself (or the
+next agent) to remember it forever.
+
+## Escalation
+
+If a rule above conflicts with what you're being asked to do, or you're
+genuinely unsure whether something crosses a line here, stop and ask a
+human owner (`.github/CODEOWNERS`) rather than deciding on your own that
+this case is an exception.

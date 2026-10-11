@@ -1,0 +1,52 @@
+# .githooks/pre-push must execute as a Unix shell script on any
+# platform that clones this repo -- pin it to LF regardless of the
+# clone's core.autocrlf setting. A CRLF-corrupted hook can fail to
+# execute in a way that's indistinguishable from the hook simply not
+# being wired (see .githooks/pre-push's own comments and this repo's
+# AGENT_RULES.md for why a silently-absent guardrail is a real risk,
+# not a cosmetic one), found by an adversarial review, 2026-09-17.
+.githooks/** text eol=lf
+
+# Same reasoning applies to any shell-script template in this kit --
+# consuming projects copy these out as real, executed scripts, so a
+# CRLF-corrupted template propagates the exact same silent-failure mode
+# into every project that copies it. Two separate patterns, not one --
+# `templates/pre-push-hook.template` has a `#!/bin/sh` shebang but no
+# `.sh` extension, so `*.sh.template` alone doesn't match it. An
+# adversarial review reproduced the gap directly: on a fresh Windows
+# clone with the Git-for-Windows default `core.autocrlf=true`, this
+# exact file checked out with a CRLF shebang (`#!/bin/sh\r\n`) -- the
+# one template this whole file exists to protect, silently uncovered
+# since this rule was first written, 2026-09-22.
+#
+# Adding an eol=lf rule to an already-tracked file does not, by itself,
+# rewrite that file's line endings in an existing clone or index --
+# git only applies the new attribute going forward. Run `git add
+# --renormalize .` once after adding a rule like this (done here) so
+# the fix actually takes effect on files git already knows about, not
+# just newly-checked-out ones.
+templates/*.sh.template text eol=lf
+templates/pre-push-hook.template text eol=lf
+templates/pre-commit-hook.template text eol=lf
+templates/kit-go.sh.template text eol=lf
+tests/kit-go/*.sh text eol=lf
+templates/KIT-GO.md.template text eol=lf
+templates/commands/*.md.template text eol=lf
+KIT-VERSION text eol=lf
+
+# Same reasoning again: these YAML files embed real shell scripts inside
+# `run: |` blocks that a CI runner executes -- a CRLF-corrupted copy can
+# leave a literal \r at the end of every embedded shell line, which
+# bash treats as part of the command (a classic "$'\r': command not
+# found"-shaped failure). Caught while fixing an unrelated YAML bug in
+# governance-gate.yml.template on a Windows checkout, 2026-09-23 -- not
+# yet reproduced as an actual CI failure, but the mechanism is identical
+# to the already-confirmed .sh.template risk above, so pinned
+# preemptively rather than waiting to reproduce it the hard way.
+templates/workflows/*.yml.template text eol=lf
+
+# License/attribution files: LF so any future content hash is stable across platforms.
+LICENSE text eol=lf
+NOTICE text eol=lf
+PROVENANCE.md text eol=lf
+release/*.sh text eol=lf

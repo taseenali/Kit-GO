@@ -1,0 +1,131 @@
+#!/bin/sh
+# One-time, one-command setup for any clone of this repo: wires
+# .githooks/pre-push so "no direct push to main/master" is actually
+# enforced from this clone, not just written policy.
+#
+# Known, accepted tradeoff if you wire this into an npm `prepare`
+# script (as this template's own header recommends): `prepare` also
+# runs in contexts that aren't a full git clone -- a deployment
+# artifact, an `npm pack` extraction, a Docker build stage that copies
+# package.json before the rest of the repo for layer caching. This
+# script hard-fails (no git repo found, or no .githooks/pre-push on
+# disk) in exactly those contexts, which will fail the whole install
+# there too. This is a deliberate choice, not an oversight (found by a
+# fresh review pass, 2026-09-23): failing loudly is safer than a silent
+# `|| true` that could mask a real broken clone. If your project has a
+# real non-git-clone install path (a production Docker build, a deploy
+# pipeline), use `npm ci --ignore-scripts` (or your stack's equivalent)
+# there deliberately, rather than weakening this script's own failure
+# mode for every context to accommodate one of them.
+#
+# This exists because `git config core.hooksPath .githooks` is a
+# per-clone git config setting -- git never tracks or auto-applies it,
+# so a fresh clone (a new collaborator, a CI runner, a second machine)
+# starts with the hook completely dark until this runs once. A written
+# reminder in AGENT_RULES.md/README.md depends on someone actually
+# reading and remembering it before their first push; this script is
+# the same fix SETUP-GUIDE.md already applies to the push-protection
+# problem itself (a mechanism instead of a memorized rule), aimed at
+# the *setup step* this time instead of the push itself.
+#
+# Wire this to run automatically as part of whatever command a
+# collaborator already runs to start working on this project, so
+# wiring the hook is a side effect of an action they're doing anyway,
+# not a new step to remember:
+#   - Node/npm:   add `"prepare": "sh scripts/setup-hooks.sh"` (or the
+#                 path you copied this to) to package.json -- `prepare`
+#                 runs automatically on `npm install`.
+#   - Python:     call this from a `post_install` hook in your
+#                 packaging config, or document `make setup` as the
+#                 first onboarding step if your stack has no
+#                 install-time hook convention.
+#   - Go/Rust/other: no universal install-hook convention exists --
+#                 document running this script (directly, or via
+#                 `make setup`) as the explicit first onboarding step.
+# Whichever mechanism you use, this script is the actual logic; the
+# trigger is stack-specific, the wiring itself is not.
+
+set -e
+
+repo_root=$(git rev-parse --show-toplevel 2>/dev/null)
+if [ -z "$repo_root" ]; then
+  echo "setup-hooks: not inside a git repository -- nothing to wire." >&2
+  exit 1
+fi
+
+hooks_dir="$repo_root/.githooks"
+if [ ! -f "$hooks_dir/pre-push" ]; then
+  echo "setup-hooks: $hooks_dir/pre-push not found -- has the governance kit's pre-push hook been copied into this repo yet? See taseenali/Kit-GO's SETUP-GUIDE.md step 1 (this project won't have its own local copy of that file -- it's a one-time reference, not something the copy list includes)." >&2
+  exit 1
+fi
+
+git config core.hooksPath .githooks
+chmod +x "$hooks_dir/pre-push" 2>/dev/null || true
+
+# Don't just assume the chmod above worked -- `2>/dev/null || true`
+# means a real chmod failure (a mounted volume that doesn't preserve
+# Unix permissions, a restrictive ACL) is silently swallowed here, and
+# the self-test below invokes the hook via `sh "$hooks_dir/pre-push"`,
+# which runs the script's content regardless of its executable bit --
+# it does NOT exercise the same code path git itself uses (a direct
+# exec, which Unix refuses without +x). Re-checking explicitly closes
+# that gap: without it, this script could report success on a hook
+# `git push` would silently skip entirely (found by a fresh review
+# pass, 2026-09-23 -- ironically, while testing this exact script,
+# since Windows/NTFS doesn't meaningfully enforce the executable bit
+# the way Linux/Mac do, which is why this had gone unnoticed).
+if [ ! -x "$hooks_dir/pre-push" ]; then
+  echo "setup-hooks: FAILED to make $hooks_dir/pre-push executable (chmod ran but the file still isn't +x -- check filesystem/ACL permissions). git itself will silently skip a non-executable hook; the self-test below cannot detect this case, so failing here instead." >&2
+  exit 1
+fi
+
+# Optional commit-time companion (templates/pre-commit-hook.template ->
+# .githooks/pre-commit). Only handled if it's present -- adopting it is
+# a separate choice, not required. Same chmod-then-recheck pattern as
+# pre-push above (git silently skips a non-executable hook). Not covered
+# by the synthetic self-test below: that test feeds a fake push event to
+# pre-push, whereas pre-commit's behavior depends on the real
+# checked-out branch, so it can't be exercised the same way without
+# making a real commit -- confirm it once by hand, per that template's
+# own setup note.
+if [ -f "$hooks_dir/pre-commit" ]; then
+  chmod +x "$hooks_dir/pre-commit" 2>/dev/null || true
+  if [ ! -x "$hooks_dir/pre-commit" ]; then
+    echo "setup-hooks: FAILED to make $hooks_dir/pre-commit executable (check filesystem/ACL permissions) -- git will silently skip a non-executable hook." >&2
+    exit 1
+  fi
+  echo "setup-hooks: .githooks/pre-commit found and made executable (not self-tested here -- see templates/pre-commit-hook.template's setup note)."
+fi
+
+echo "setup-hooks: core.hooksPath set to .githooks, pre-push hook is executable."
+echo "Verifying it actually rejects a direct push to main (no real push attempted -- feeding it a synthetic event instead):"
+
+# Run in a subshell with ALLOW_DIRECT_MAIN_PUSH explicitly unset -- if
+# it's set in the calling shell (a real override left exported from an
+# earlier emergency push, or set in a profile), the synthetic test
+# would take the override branch instead of the reject branch: exit 0
+# instead of 1, AND a bogus line appended to OVERRIDE-LOG.md claiming a
+# real override happened with a fake sha, corrupting the one audit
+# trail this whole mechanism exists to keep honest (found downstream,
+# adopted here, 2026-09-22).
+synthetic_result=$(unset ALLOW_DIRECT_MAIN_PUSH; printf 'refs/heads/test 0000000000000000000000000000000000000001 refs/heads/main 0000000000000000000000000000000000000002\n' | "$hooks_dir/pre-push" 2>&1) && synthetic_exit=0 || synthetic_exit=$?
+
+# Coupled to the literal wording of .githooks/pre-push's own rejection
+# message -- if that message is ever reworded, this pattern needs to
+# change with it (in this file AND verify-setup.sh.template, which has
+# the identical grep), or this self-test silently stops detecting a
+# real rejection (found downstream, adopted here, 2026-09-22).
+#
+# Note the invocation above is a DIRECT exec of the hook file (no `sh`
+# in front) -- that's deliberate, not incidental: it relies on the same
+# shebang + executable-bit mechanism git itself uses to invoke a hook,
+# making this self-test the authoritative check for "can git actually
+# run this," rather than a second, narrower mechanism that could drift
+# out of sync with the explicit `-x` check above it (found downstream,
+# adopted here, 2026-09-23).
+if [ "$synthetic_exit" = "1" ] && echo "$synthetic_result" | grep -q "pre-push REJECTED"; then
+  echo "OK: hook is real and active -- a direct push to main would be rejected from this clone."
+else
+  echo "setup-hooks: WARNING -- the hook did not reject the synthetic test as expected. Wiring may not be complete; check core.fileMode / core.hooksPath manually." >&2
+  exit 1
+fi

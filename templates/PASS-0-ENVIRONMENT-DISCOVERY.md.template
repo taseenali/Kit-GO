@@ -1,0 +1,167 @@
+# Pass 0 — Environment Discovery
+
+**Run this before copying a single template file.** Everything else in
+this kit (`SETUP-GUIDE.md`'s step-by-step, the specific templates) was
+originally written against one real project's actual stack (Python/
+pytest, GitHub private repo, free plan, solo owner + AI agent,
+single-repo). Copying those steps verbatim onto a project with a
+different stack, VCS host, plan tier, team shape, or repo count will
+silently carry that project's assumptions into yours — a Node/Vitest
+project doesn't need `tests-python.yml.template` adapted, it needs a
+different workflow; a GitLab project has no `gh` CLI or GitHub Actions
+at all; a team of five doesn't get the same self-merge authority a
+solo owner does. This pass exists so those differences get decided
+once, explicitly, before setup — not discovered piecemeal as each
+template turns out to assume something that isn't true here.
+
+Fill in every section below with real answers about *this* project,
+not the reference project's answers. Where you don't know yet, write
+"not yet decided" — that's a valid answer this kit's own Definition of
+Done treats as an open item to revisit, not a blocker to setup.
+
+## 1. Stack
+
+- **Primary language(s):** _____
+- **Test framework and command** (the thing a CI workflow actually
+  runs): _____
+- **Lint command:** _____
+- **Typecheck command** (if the language has one): _____
+- **Does any test require real secrets/a real database/a real external
+  API to run?** If yes, name what — this changes what a CI workflow can
+  run without a secrets-management decision first (see this kit's
+  `LESSONS-LEARNED.md` "CI" section for the real gotchas around
+  secrets-requiring test suites).
+
+→ Determines: which `templates/workflows/*.yml.template` to adapt (or
+whether you need to write a new one — the *structure* in the existing
+test-workflow template, unfiltered triggers + concurrency group + no-secrets-required
+suite, is the reusable part; the specific install/run commands are
+not).
+
+## 2. VCS host and plan
+
+- **Host:** GitHub / GitLab / Bitbucket / other: _____
+- **Repo visibility:** private / public
+- **Plan tier:** free / paid (name it): _____
+- **Real check, don't assume**: does this host+plan actually support
+  required-status-checks-before-merge / branch protection on a
+  *private* repo? (GitHub's free tier does not — confirmed via the API
+  returning a 403 on `branches/main/protection`; other hosts and plans
+  vary and should be checked the same way — a real API call or a real
+  attempt to configure it, not a guess from general reputation.)
+
+→ Determines: if real platform-level branch protection is available,
+use it as the primary enforcement and treat `templates/pre-push-hook.template`
++ `templates/workflows/governance-gate.yml.template` as defense-in-depth,
+not the primary mechanism. If it isn't available, those two templates
+*are* the primary mechanism — copy and wire both, not just one (the
+hook alone cannot stop `--no-verify` or a change made on the platform's
+web UI; the gate alone can't prevent a bad push, only detect it after
+the fact — see both templates' own comments for the honest division of
+labor between them).
+
+## 3. Repo count and structure
+
+- **Is this one repository, or does the product span more than one?**
+  If more than one, list them: _____
+- **If more than one: do you already know whether they should merge
+  into a monorepo, or stay separate?** If undecided, don't guess —
+  this kit's own `LESSONS-LEARNED.md` ("Multi-repo / multi-codebase
+  products") has the real, checkable questions (VCS access-control
+  granularity, language-mix tooling support, actual team size against
+  real small-team guidance) rather than default monorepo-vs-polyrepo
+  enthusiasm in either direction.
+
+→ Determines: **if more than one repo, every governance template in
+this kit gets copied and wired into EACH repo independently — never
+into just the "main" one.** This is not optional or a nice-to-have: a
+coding assistant's auto-loaded project memory is anchored to whichever
+directory a session actually started in, so a rules file living in
+only one repo of a multi-repo product is invisible to a session rooted
+in a sibling repo, even while that session edits the sibling repo's
+files through tool calls. This exact gap caused a real, documented
+incident (see `LESSONS-LEARNED.md`) — don't let a new project repeat
+it by treating "I set up the kit in our main repo" as done. If each
+repo's own onboarding file (`CLAUDE.md`/`AGENTS.md`-equivalent) doesn't
+already name this blind spot explicitly, add that as part of this
+setup, not an afterthought.
+
+## 4. Team shape
+
+- **Who/what actually commits to this repo right now?** Solo human +
+  AI agent(s) / multiple humans / multiple humans each with their own
+  AI agent / other: _____ (Answer from what the human tells you and from
+  GitHub-side history — PRs and reviews by real accounts (not commit author
+  metadata, and only where no agent shares that login, see below) — never
+  by inferring it from session-context fields like `userEmail`, a git
+  `user.email`, or an OS username. Those reflect the local
+  account/session, not necessarily a different person: a real session
+  mistook one human's changed local account for a second contributor.)
+- **Is anyone besides the owner currently able to merge without
+  review?**
+- **Does any AI agent with real merge/push capability operate under its
+  own distinct credential (a separate PAT, a GitHub App installation),
+  or does it share a human's personal authentication?** Check this for
+  real — run `gh auth status` / `gh api user` (or your host's
+  equivalent) in the actual environment the agent uses, don't assume.
+  This is a load-bearing fact, not a formality: on a real project
+  checked this way, 2026-09-23, the agent's `gh` session turned out to
+  be indistinguishable from the human owner's own login — meaning any
+  future "who actually merged this" mechanical check (see
+  `LESSONS-LEARNED.md`'s "second-human self-merge" entry) can never
+  catch an agent self-merging while sharing that identity, no matter how
+  well-built. If your project's answer is "shared," Tier 2's "never
+  self-merged by an agent" rule (the agent never executes the merge
+  itself, by any mechanism, even after a human says yes — see
+  `AGENT_RULES.md.template`'s "What 'never self-merged by an agent'
+  actually means") has zero external verification today —
+  say so plainly wherever else that rule is documented, rather than
+  implying a guarantee the credential setup can't actually back.
+
+→ Determines: the Tier system's self-merge authority calibration in
+`AGENT_RULES.md.template`'s "Review rigor scales with what's actually
+at stake" section. The template's defaults (solo owner + AI agent,
+Tier 0/1 self-merged by an agent once preconditions hold, Tier 2 always
+needs real human sign-off) are calibrated to a solo-owner project — see
+that section's own "Maturity triggers" for exactly which changes
+(a second human joining, an independently-operating second agent
+session) should trigger a real recalibration, not a silent continuation
+of solo-project rules once the team has actually grown. The
+credential-sharing question above also determines whether a future
+`merged_by`-based mechanical check (once a second human actually joins)
+can deliver a real guarantee for this project, or only a partial one.
+
+## 5. Deployment / production status
+
+- **Is anything from this repo live, customer-facing, or handling real
+  money/PII yet?** _____
+- **If not yet, what's the real trigger that will make it so** (a
+  specific planned launch, or genuinely undecided)?
+
+→ Determines: how urgently the "Maturity triggers" section's items
+apply, and whether Tier 2's stakes list (secrets, payment data, a real
+production database) needs anything added specific to this project
+beyond the template's generic list.
+
+## 6. What already exists
+
+- **Does this repo already have any onboarding file** (`CLAUDE.md`,
+  `AGENTS.md`, a `CONTRIBUTING.md`, an existing rules doc)? If yes,
+  this kit's templates should be integrated into what's there, not
+  duplicated alongside it — two onboarding files with overlapping,
+  possibly-drifting content is a worse outcome than one file that's a
+  little long.
+- **Does this repo already have any CI at all?** If yes, note what it
+  currently checks before assuming `tests.yml`/`ci.yml` needs to be
+  created from scratch versus extended.
+
+## Output of this pass
+
+A short, explicit list of: which templates get copied where (naming
+every repo if more than one), which ones need real adaptation beyond
+filling in placeholder values (a non-Python test command, a
+non-GitHub CI provider), and which of this kit's default calibrations
+(Tier system self-merge authority, branch-protection-vs-hook primary
+mechanism) don't match this project's real answers above and need to
+be stated differently in the copied `AGENT_RULES.md`. Carry that list
+into `SETUP-GUIDE.md`'s step 1 instead of following it blind.

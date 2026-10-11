@@ -1,0 +1,249 @@
+#!/bin/sh
+# Read-only status check: "is this repo's governance setup actually
+# working right now" -- companion to setup-hooks.sh, deliberately kept
+# separate from it.
+#
+# THIS SCRIPT MUST NEVER MUTATE ANYTHING. setup-hooks.sh wires
+# core.hooksPath and fixes the executable bit; if a "verify" script
+# delegated to it (or duplicated its mutating steps), every check would
+# silently repair the exact drift it exists to detect, then report
+# success -- the check could never observe the one state it's supposed
+# to catch. This is the same failure shape as a vendor "compliance
+# verify" command that reports 100% passed by checking package
+# importability instead of real runtime behavior: a check that can't
+# fail isn't a check (found the hard way on a real downstream project,
+# 2026-09-22 -- both a fresh and an adversarial review pass independently
+# flagged an earlier draft of this exact script for exactly this reason
+# before it shipped). Every step below only reads state -- git config,
+# file existence/permissions, a synthetic hook invocation whose only
+# real side effect is a log line IF a genuine override reason is
+# present, which a synthetic test never supplies.
+#
+# Copy this to scripts/verify-setup.sh (or wherever you copied
+# setup-hooks.sh) and extend the "project-specific checks" section
+# below with whatever else this project's real setup needs verified --
+# a second language's dependency install, a required .env key's
+# presence (never its value), another policy/governance tool this
+# project layers on top of this kit. Wire it to run after
+# setup-hooks.sh in whatever your stack's install step already is (e.g.
+# `"prepare": "sh scripts/setup-hooks.sh && sh scripts/verify-setup.sh"`
+# in package.json) so the full picture surfaces automatically -- but
+# only the actual hook-wiring step should ever be allowed to fail an
+# install outright; treat still-deferred/optional project-specific
+# items as warnings, not hard failures, so this script doesn't become
+# something people route around because it blocks routine work for
+# something genuinely not ready yet.
+
+status=0
+warnings=0
+
+echo "=== Governance kit: push-protection hook ==="
+
+repo_root=$(git rev-parse --show-toplevel 2>/dev/null)
+if [ -z "$repo_root" ]; then
+  echo "FAIL: not inside a git repository." >&2
+  status=1
+else
+  configured_path=$(git config --get core.hooksPath 2>/dev/null)
+  hook_file="$repo_root/.githooks/pre-push"
+
+  if [ "$configured_path" != ".githooks" ]; then
+    echo "FAIL: core.hooksPath is '$configured_path' (expected .githooks) -- the hook is not wired in this clone. Run: sh scripts/setup-hooks.sh" >&2
+    status=1
+  elif [ ! -f "$hook_file" ]; then
+    echo "FAIL: .githooks/pre-push does not exist." >&2
+    status=1
+  elif [ ! -x "$hook_file" ]; then
+    echo "FAIL: .githooks/pre-push exists but is not executable (mode should be 755)." >&2
+    status=1
+  else
+    # Read-only: this invokes the hook directly on synthetic stdin, the
+    # same technique setup-hooks.sh uses -- it does not go through git,
+    # does not touch any real ref, and a synthetic test never supplies
+    # a real ALLOW_DIRECT_MAIN_PUSH reason, so OVERRIDE-LOG.md is never
+    # touched by this check.
+    #
+    # This synthetic-test block is intentionally duplicated in
+    # setup-hooks.sh.template rather than shared via a sourced library
+    # file -- each script is meant to be copyable and runnable on its
+    # own, per SETUP-GUIDE.md's file-by-file copy model, and a shared
+    # lib file both scripts depend on would break that. The real cost of
+    # the duplication: it's already proven able to drift (this exact
+    # comment block didn't exist in this file when it was first written,
+    # only in setup-hooks.sh.template, found by a fresh review pass).
+    # If you change this logic here, change it in
+    # setup-hooks.sh.template too, and vice versa.
+    #
+    # Coupled to the literal wording of .githooks/pre-push's own
+    # rejection message -- if that message is ever reworded, this
+    # pattern needs to change with it (in both files above), or this
+    # self-test silently stops detecting a real rejection.
+    #
+    # Direct exec of the hook file (no `sh` in front), deliberately --
+    # relies on the same shebang + executable-bit mechanism git itself
+    # uses, making this self-test authoritative for "can git actually
+    # run this" rather than depending only on the separate `-x` check
+    # above (found downstream, adopted here, 2026-09-23).
+    synthetic_result=$(unset ALLOW_DIRECT_MAIN_PUSH; printf 'refs/heads/test 0000000000000000000000000000000000000001 refs/heads/main 0000000000000000000000000000000000000002\n' | "$hook_file" 2>&1) && synthetic_exit=0 || synthetic_exit=$?
+    if [ "$synthetic_exit" = "1" ] && echo "$synthetic_result" | grep -q "pre-push REJECTED"; then
+      echo "OK: hook is wired and correctly rejects a synthetic push-to-main event."
+    else
+      echo "FAIL: hook is wired but did not reject the synthetic test as expected -- something is broken beyond simple mis-wiring." >&2
+      status=1
+    fi
+  fi
+fi
+
+echo
+echo "=== Governance kit: CLAUDE.md / AGENTS.md in sync ==="
+
+if [ -n "$repo_root" ] && [ -f "$repo_root/CLAUDE.md" ] && [ -f "$repo_root/AGENTS.md" ]; then
+  if diff -q "$repo_root/CLAUDE.md" "$repo_root/AGENTS.md" >/dev/null 2>&1; then
+    echo "OK: CLAUDE.md and AGENTS.md are identical."
+  else
+    # Warning, not a hard failure -- deliberately different content
+    # between the two is a real (if unusual) choice a project could
+    # make; CLAUDE.md.template's own instructions say to keep them
+    # identical, so this is worth surfacing even though it doesn't
+    # block setup the way a broken hook does.
+    echo "WARNING: CLAUDE.md and AGENTS.md both exist but differ -- CLAUDE.md.template's instructions say to keep both in sync when both are present. If that's not what you want, this warning is safe to ignore." >&2
+    warnings=$((warnings + 1))
+  fi
+elif [ -n "$repo_root" ] && [ -f "$repo_root/CLAUDE.md" ] || { [ -n "$repo_root" ] && [ -f "$repo_root/AGENTS.md" ]; }; then
+  echo "OK: one of CLAUDE.md/AGENTS.md present (only one tool convention in use here, or the other one hasn't been added)."
+else
+  echo "WARNING: neither CLAUDE.md nor AGENTS.md exists at the repo root -- an AI agent's session won't auto-load this kit's rules unless one of these is present. See taseenali/Kit-GO's templates/CLAUDE.md.template (this project won't have its own local copy of that path)." >&2
+  warnings=$((warnings + 1))
+fi
+
+echo
+echo "=== Governance kit: unresolved decision records ==="
+
+# A partial, honestly-scoped answer to the "AI agents have no memory
+# across sessions" problem this kit's own decision-record files
+# (OPEN-RESEARCH-QUEUE.md.template, COLLABORATOR-LOG.md.template,
+# KIT-ISSUES-LOG.md.template) exist to soften -- research done on a
+# downstream project, 2026-09-24, into whether a fast classification API
+# ("Jev"/TypeSafe) could substitute for real decision traceability
+# concluded it can't: that's a durable-memory problem, not an
+# inference-speed one, and the real practice for it (an Architecture
+# Decision Record, or this kit's own equivalent files) has to actually
+# get READ BACK at the start of a session, not just written once and
+# trusted to be remembered.
+#
+# Said plainly, not oversold: this check does NOT run itself "at every
+# session start" -- there is no session-start hook or tooling
+# integration anywhere in this kit. It runs when `verify-setup.sh` runs,
+# which is still triggered by a written instruction
+# (`CLAUDE.md.template` step 2) an agent has to choose to follow, same
+# as the instruction this check exists alongside
+# (`AGENT_RULES.md.template`'s Definition of Done). What this check
+# actually adds: once `verify-setup.sh` DOES run, it can no longer be
+# run selectively (checking the hook but skipping the decision-record
+# files) or forgotten silently -- it surfaces real state instead of
+# assuming it, the same as this script's other checks. Whether the
+# script itself gets run at all remains exactly as much discipline as
+# before this check existed.
+#
+# This is intentionally a WARNING-level nudge, not a hard failure --
+# having open questions or unresolved kit-log entries is normal, not
+# broken.
+#
+# Grep patterns here are deliberately simple text matches, not a real
+# markdown parser. The KIT-ISSUES-LOG check's own comment documents its
+# undercount case. The OPEN-RESEARCH-QUEUE check can also overcount --
+# any status line starting with the literal text "Open" counts, even a
+# question whose real state is "Opened and closed" or "Open -- superseded,
+# see RQ-9" (an unusual way to word a status, but not one this pattern
+# can tell apart from a genuinely open one). Rather than a smarter
+# pattern that still can't be a real parser, this is named here as a
+# known, accepted imprecision.
+
+# Hardcoded to docs/ -- SETUP-GUIDE.md's own copy step allows "your
+# project's equivalent docs root" as an alternative for this specific
+# file. A project that took that alternative gets a permanent, silent
+# "not present" below for this one check -- not a false alarm, but also
+# not a signal that anything is wrong; if that's your situation, this
+# check is simply inert for you, and that's a known, undocumented-until-
+# now gap, not a hidden design decision.
+
+# One guard for both checks below -- each previously carried its own
+# separate `-z "$repo_root"` branch printing the identical skip message,
+# so running this script outside a git repository printed that line
+# twice in a row under one header (reported by a downstream project,
+# 2026-09-24; harmless to the warning count/exit code, just misleading).
+if [ -z "$repo_root" ]; then
+  echo "(not inside a git repository -- decision-record checks skipped)"
+else
+  if [ -f "$repo_root/docs/OPEN-RESEARCH-QUEUE.md" ]; then
+    # Matches "**Status:** Open" and "**Status:** Open, narrowed" -- the
+    # template's own unfilled placeholder ("{{Open / Open, narrowed /
+    # Resolved -- date}}") starts with "{{", not "Open", so it doesn't
+    # false-positive on a copy that hasn't been touched yet. No "|| echo 0"
+    # fallback here -- grep -c always prints a number to stdout regardless
+    # of its exit status (1 on zero matches), so a fallback on failure
+    # would append a second, spurious "0" on the healthy zero-match case
+    # (found by a fresh review pass, 2026-09-24: `[ "0
+    # 0" -gt 0 ]` errors as "integer expression expected," which happened
+    # to still resolve to the right branch by accident, not by design).
+    open_rq=$(grep -c '^\*\*Status:\*\* Open' "$repo_root/docs/OPEN-RESEARCH-QUEUE.md" 2>/dev/null)
+    if [ "$open_rq" -gt 0 ] 2>/dev/null; then
+      echo "WARNING: docs/OPEN-RESEARCH-QUEUE.md has $open_rq open question(s) -- read them before starting any pass sized beyond a small fix, per AGENT_RULES.md's Definition of Done. Not a failure; a reminder that this file exists for exactly this moment." >&2
+      warnings=$((warnings + 1))
+    else
+      echo "OK: docs/OPEN-RESEARCH-QUEUE.md has no open questions (or none matched -- see this check's own comments for its real precision)."
+    fi
+  else
+    echo "(docs/OPEN-RESEARCH-QUEUE.md not present at the standard docs/ path -- nothing to check)"
+  fi
+
+  if [ -f "$repo_root/docs/KIT-ISSUES-LOG.md" ]; then
+    # Matches a real entry's prescribed "**Resolved here at runtime?** No."
+    # (ending in a bare period -- see KIT-ISSUES-LOG.md.template's own
+    # entry-format note for why that exact wording is required) but
+    # deliberately NOT the template's own permanent reference block, whose
+    # field is a `{{No. / or "Yes, by..."}}` placeholder starting with
+    # `{{`, not "No." -- so the reference block doesn't inflate the count
+    # forever. A real entry that doesn't follow the prescribed bare-period
+    # wording (unusual, since the template now says explicitly to use it,
+    # but not physically prevented) would be undercounted here -- a real
+    # limitation, not a hidden one. No "|| echo 0" fallback, for the same
+    # reason as the check above.
+    open_kit_issues=$(grep -c '^\*\*Resolved here at runtime?\*\* No\.$' "$repo_root/docs/KIT-ISSUES-LOG.md" 2>/dev/null)
+    if [ "$open_kit_issues" -gt 0 ] 2>/dev/null; then
+      echo "WARNING: docs/KIT-ISSUES-LOG.md has $open_kit_issues entry/entries not yet resolved at runtime -- these are deferred kit bugs/ideas for the kit maintainer's own later attention, not something to act on here, but worth knowing they exist." >&2
+      warnings=$((warnings + 1))
+    else
+      echo "OK: docs/KIT-ISSUES-LOG.md has no unresolved entries (or none matched -- see this check's own comments for its real precision)."
+    fi
+  else
+    echo "(docs/KIT-ISSUES-LOG.md not present -- nothing to check)"
+  fi
+fi
+
+echo
+echo "=== Project-specific checks (edit this section for your project) ==="
+echo "(none defined in this template -- add your project's own checks here)"
+
+# IMPORTANT for whoever edits this section: use $repo_root-relative
+# paths for any real check you add (e.g. "$repo_root/.env", never a
+# bare ".env") -- this script is documented as "safe to run from
+# anywhere," and a bare relative path silently gives the wrong answer
+# when run from a subdirectory (found on a real downstream project's
+# own additions to this exact section, by an adversarial review pass,
+# 2026-09-23). Increment `warnings` (not `status`) for anything that
+# shouldn't block install; increment `status=1` only for something that
+# should.
+
+echo
+if [ "$status" = "0" ]; then
+  if [ "$warnings" -gt 0 ]; then
+    echo "Passed, with $warnings warning(s) -- see WARNING lines above."
+  else
+    echo "All checks passed, no warnings."
+  fi
+else
+  echo "One or more checks failed -- see FAIL lines above." >&2
+fi
+
+exit "$status"

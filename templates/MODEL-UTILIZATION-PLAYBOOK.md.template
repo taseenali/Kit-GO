@@ -1,0 +1,174 @@
+# Model Utilization Playbook
+
+**Status:** Binding, once adopted. Fill in the "Confirmed how" column
+below with this project's own real results as they happen — don't leave
+this file's own placeholder guesses in place once a real result exists
+to replace them.
+
+## Core principle
+
+**Model choice matches the real stakes and shape of the task in front of
+you, at that moment — never a fixed default applied out of habit, and
+never escalated "to be safe" past what the task actually needs.** Both
+directions are real failure modes:
+
+- **Under-provisioning** — using a pass that's not genuinely
+  *decorrelated* from whatever already reviewed the work, when the
+  task's stakes call for real independence. A same-model, same-context
+  re-check shares its own blind spots and misses what a genuinely
+  different reasoning process would have caught. The fix for
+  under-provisioning is difference, not simply "use the biggest model
+  available" — see "The relative-difference principle" below.
+- **Over-provisioning** — reaching for a stronger/more expensive model
+  when the task's real stakes don't call for it. This is just as real a
+  failure, not a safe default: it spends real, finite account usage on
+  work a cheaper model would have done just as well, leaving less
+  available for when a harder task actually needs it.
+
+Optimal is a moving target that depends on the instance — the current
+state of any shared budget, what's already been done, the task's real
+tier — not a static table alone. The table below is the starting point;
+real judgment about the current instance is what makes the choice
+actually correct for that instance.
+
+## What's available, and what's actually characterized in this project
+
+| Model | Real fit here | Confirmed how |
+|---|---|---|
+| {{DEFAULT_MODEL}} | The default working model — building, most review, most day-to-day tasks. | This is the model running the main session's default. |
+| {{DEEP_REVIEW_MODEL}} | Deep/adversarial reasoning where it matters — a real *decorrelation* pass when the session default needs one, hard architectural judgment calls. Not a fixed "always use this model" rule — the requirement is difference from whatever ran first (see "The relative-difference principle"); it's only the default *decorrelation choice* because it's genuinely different from {{DEFAULT_MODEL}}. | {{Record a real result here once one exists — which PR, what it found, and a pointer to the pass/record documenting it. Don't leave this as a claim with no real citation.}} |
+| {{FAST_CHEAP_MODEL}} | Fast, cheap, mechanical, low-judgment work — consistency checks, triage/dedupe of a large findings list, simple lookups. **Never** verification of a finding or any accountability-adjacent judgment call (see "Hard boundaries," below) — that floor is absolute, not relative to whatever this project's own default happens to be. | {{Not yet used on a real task, characterized by capability class only — or record a real result once one exists.}} |
+| {{ANY OTHER MODEL AVAILABLE BUT NOT YET CHARACTERIZED}} | **Not characterized for this project at all.** Don't use it speculatively — recommending a use case with no real basis is exactly the kind of guess a "verified vs. assumed" discipline exists to prevent. | Open as a research item (see this project's own open-research-queue equivalent, if it has one) — not an assumption baked into this table. |
+| {{MANUAL_ONLY_MODEL, if this project has one}} | **Never auto-dispatched, as a standing rule — not a characterization gap.** Only a manual switch, made by the human for that one task, enables it, and only when the task is genuinely suited to it. This holds even after it becomes well-characterized; characterization informs *what* a human might switch it to, never authorizes an agent to select it on its own. (Delete this row if no such model exists here — most projects won't have one.) | Human-stated rule, dated; doesn't wait on characterization to take effect. |
+
+## The decision framework — tied to this project's own review-rigor tiers
+
+This is not a parallel framework to this project's Tier 0/1/2 (or
+equivalent) review-rigor policy — it's the same stakes-based reasoning,
+extended to cover model choice for work generally, not just deep review.
+If this table and that policy ever seem to disagree, that's a bug to fix
+immediately, not a discretion call.
+
+| Task | Right-sized choice | Why |
+|---|---|---|
+| Tier 0 work (docs, wording) | Session default does the work; self-merges if this project's policy allows it | Low stakes — no review escalation needed at all |
+| Tier 0 supplementary check (e.g. "do these numbers agree across N docs") | Fast/cheap-model-appropriate, if dispatched as a separate pass at all | Mechanical, no judgment required — using a stronger model here is pure over-provisioning |
+| Tier 1 work (features, app logic) | Session default builds it | Matches the task's real complexity |
+| Tier 1 review (the required fresh pass) | A **fresh** invocation of the session default model | Decorrelation from the authoring context is the mechanism here, not model diversity |
+| Tier 2 work (schema, compliance-adjacent, this doc/the agent-rules doc/CODEOWNERS) | Session default builds it | Same as Tier 1 — the escalation happens at review, not authorship |
+| Tier 2 review | Fresh session-default pass, **PLUS** a deeper/multi-agent review mode (preferred, if available) **or**, if genuinely unavailable and confirmed, the Local Multi-pass fallback (fresh pass + one pass on a model different from whatever ran that fresh pass) | This is the one place real cross-model/cross-agent decorrelation earns its cost — see the agent rules doc's "Local multi-pass review" section |
+| A review/task that naturally decomposes into independent angles | Dispatch multiple agents **in parallel** (only when the angles are genuinely independent — see "Parallel dispatch," below), each right-sized to *that angle's own* complexity | Parallelism is about independent angles running concurrently, not an excuse to escalate every angle to the strongest available model regardless of what that angle actually needs |
+| Triage/dedupe of a large findings list before a human or a stronger pass looks at it | Fast/cheap-model-appropriate | Mechanical sorting/matching, not judgment |
+| Verifying any finding against the real code before acting on it | **Never a fast/cheap-class model, full stop — an absolute floor, not relative to whatever the session default happens to be.** A capable/deep-reasoning-class model, whichever fits the underlying change's own tier. | This is an accountability-adjacent judgment call — never delegate it to a model class this playbook doesn't trust with judgment calls, and that trust boundary doesn't move just because a session's default happens to be a fast/cheap model |
+
+## The relative-difference principle
+
+Any rule that calls for "a different model" must be stated **relative to
+whatever model actually ran the prior pass** — never hardcoded as a
+fixed model name. If a fallback procedure says "switch to Model X" as a
+literal, a session whose own default already *is* Model X would produce
+two identical-model passes and a fabricated verification claim in the
+risk summary if the label still says "different." When adding a new
+model-selection rule anywhere in this project, state it as a property
+("different from step 1's model," "stronger than the session default")
+not a literal name, unless the rule is genuinely model-specific for a
+reason that's written down.
+
+## Parallel dispatch
+
+Multiple agents may run concurrently when their tasks are **genuinely
+independent** — no output of one is an input the others need first (the
+same independence test any parallel tool dispatch should use generally).
+Real, sanctioned uses:
+- Splitting a large review into independent angles (correctness,
+  security/data-handling, consistency-with-docs) so each runs at its own
+  right-sized model instead of one pass trying to do everything at the
+  strongest model available.
+- Running a fast/cheap consistency check alongside a deeper pass, rather
+  than making the deeper pass also do the mechanical checking.
+
+Not a license to spin up agents by default — every dispatch still costs
+real budget and real time to read the result. Parallelism helps when the
+work genuinely splits; it doesn't help (and shouldn't be used) just
+because it's available.
+
+## Budget awareness is not optional
+
+A deeper/multi-agent review mode is often its own billed service,
+separate from the account's regular model usage — but "separate pool"
+never means "free" or "unlimited." Both are real and finite. Before
+reaching for a stronger-than-necessary model:
+- Check whether the task's real tier actually calls for it (the table
+  above).
+- Don't escalate "just in case" — that's over-provisioning, a real
+  failure mode per this doc's core principle, not a safe default.
+- If a real budget constraint is already known, factor that into the
+  choice rather than assuming headroom that hasn't been checked. A
+  budget constraint discovered once is an instance-specific fact, not a
+  standing rule that a review step can be skipped from now on — the
+  human still gets asked fresh each time (see the agent rules doc's
+  "Local multi-pass review" confirmation step).
+
+## Hard boundaries — never regressed, no exceptions
+
+- **A fast/cheap-class model never performs Tier 2 review, never makes
+  an accountability-adjacent judgment call, and its output is never the
+  final word on anything beyond mechanical/consistency-level work — this
+  is an absolute floor, not relative to whatever the session default
+  happens to be.** (A session whose own default is a fast/cheap model
+  does not get to read this rule as satisfied by that default; it needs
+  a genuinely capable-class pass for this specific step regardless.)
+- **No model choice, however strong, ever substitutes for the human
+  sign-off Tier 2 requires.** This playbook governs which AI does the
+  *reviewing*; it has no authority over who does the *deciding*.
+- **Any dispatch to a model other than the session default is announced
+  to the human *before* it runs**, with a one-line reason — not just
+  named after the fact in whatever summary/PR the work produces. Advance
+  notice, not after-the-fact naming — the two are not equivalent.
+- **This playbook must never contradict this project's own agent rules
+  document.** They govern the same territory from two angles (review
+  rigor vs. model choice) and must agree. A change to one that creates a
+  conflict with the other is a bug, fixed on sight.
+- **If this project has a manual-only model (see the table above), it is
+  never selected automatically, by any agent, for any task — full stop,
+  not a relative or situational call.** Every other row in the table is
+  a *recommendation* an agent applies on its own judgment; a manual-only
+  model is the one kind of exception, gated behind a human making the
+  switch for that specific task. An agent that reasons "this task fits
+  its description" still does not switch to it unprompted — it flags the
+  fit and waits. This doesn't loosen as the model gets a real track
+  record; only the *characterization* improves with use, not who may
+  invoke it.
+
+## Edge cases, resolved
+
+- **The session's own default model changes.** Most rules here are
+  stated relative to "the session default" or "whatever ran the prior
+  pass," not a hardcoded name, and substitute correctly. **One
+  deliberate exception:** the verification/judgment-call floor ("Hard
+  boundaries," above) is an *absolute* floor, not a relative one — if
+  the new default is itself a fast/cheap model, that floor does NOT
+  lower with it. Check that row explicitly when the default changes;
+  don't assume uniform substitution.
+- **A task's tier is ambiguous.** Default to the higher tier, which
+  means the more rigorous review-model choice too, not a weaker one.
+- **A fast/cheap model's finding turns out to matter.** It still gets
+  verified by a genuinely capable-class pass before anyone acts on it —
+  speed is for surfacing candidates fast, not for being the last word.
+- **Parallel agents disagree with each other.** Both findings get
+  checked against the real code; the disagreement itself is informative
+  (it often means the issue is genuinely ambiguous), not a
+  tie-break-by-vote.
+- **No model is characterized enough to trust for a given task.** Don't
+  guess. Either use the best-characterized model that fits, or treat
+  trying the uncharacterized option as its own small, explicit research
+  step — verify before relying on it, not after.
+
+## Related
+
+- This project's agent rules document — the Tier system this playbook
+  extends, and the "Local multi-pass review" procedure this playbook's
+  table points to.
+- This project's open-research-queue equivalent, if it has one — where a
+  model's real fit here should be logged once genuinely researched,
+  not guessed at in this table.

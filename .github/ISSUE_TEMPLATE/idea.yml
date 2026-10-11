@@ -1,0 +1,17 @@
+name: Idea or finding from real use
+description: A suggestion, or something you learned while adopting Kit-GO
+labels: [idea]
+body:
+  - type: textarea
+    id: situation
+    attributes:
+      label: The real situation
+      description: What were you doing when this came up? Concrete beats general.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What would you change or add?
+    validations:
+      required: false

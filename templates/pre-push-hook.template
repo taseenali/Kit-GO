@@ -1,0 +1,157 @@
+#!/bin/sh
+# Blocks a direct push to a protected branch (main/master) from this
+# clone -- mechanical enforcement of "every change goes through a PR"
+# that does NOT depend on an agent remembering AGENT_RULES.md, however
+# much context has grown or been compacted since it last re-read it.
+#
+# Honest scope, revised after a real adversarial review that built a
+# throwaway remote and reproduced every bypass below rather than
+# reasoning about them: this hook defends against FORGETTING to open a
+# PR, not against a deliberate decision to route around one. It does
+# NOT stop `git push --no-verify` (skips this hook entirely -- put a
+# real "never use --no-verify" rule in your AGENT_RULES.md, this
+# comment alone is not that rule), `git config --unset core.hooksPath`
+# / `git -c core.hooksPath= push` (disables it for one command, no
+# trace), deleting or renaming this file, or anything that isn't a
+# local `git push` at all (a change made directly on the platform's web
+# UI, or an API call that isn't a PR-merge endpoint). None of those are
+# mechanically preventable from a client-side hook -- they need a
+# server-side gate (a required CI check on `push: main`, or real
+# platform-level branch protection where your plan supports it) to
+# actually close. Track that as the real next step, not a claim this
+# hook already makes true.
+#
+# Why this exists, not just AGENT_RULES.md's own written rule: a real
+# incident (documented in this kit's LESSONS-LEARNED.md, "Multi-repo /
+# multi-codebase products") showed a written-only "no direct push to
+# main" rule can be followed correctly for several changes and silently
+# skipped for others in the very same session -- not because the PR
+# tooling was broken, but because a written rule depends on being
+# remembered every single time. Classic GitHub branch protection is the
+# platform-level version of this same fix, but it requires a paid plan
+# on a private repo on GitHub's free tier (confirmed via the GitHub
+# API: a 403 "Upgrade to GitHub Pro or make this repository public").
+# This hook is the free, git-native equivalent for the one specific
+# failure mode above: it stops an absent-minded `git push` to a
+# protected branch, every time, without asking a language model to
+# remember anything -- see the honest limits above for what it doesn't
+# reach.
+#
+# A real PR merge (e.g. `gh pr merge`) never triggers this hook at all
+# -- it updates the remote branch through the platform's API, not a
+# local `git push`. This hook only ever fires on the exact pattern it
+# exists to catch: a local branch being pushed directly onto a
+# protected remote ref, deletion included (an earlier version of this
+# hook let a protected branch be deleted outright -- deleting `main` is
+# a strictly bigger deal than pushing to it, not a lesser one, so it
+# needs the same override, not an exemption).
+#
+# Deliberate, visible escape hatch for the rare genuine exception (a
+# destructive/emergency git operation needs explicit human approval in
+# the moment, never silent -- see AGENT_RULES.md): set
+# ALLOW_DIRECT_MAIN_PUSH="<real reason>" for that one push -- a bare
+# =1, an empty/whitespace-only value, or a common boolean convention in
+# either direction (0/false/no/off, or 1/true/yes/on, any case) is
+# rejected -- a real reason has to actually be typed.
+# The override is appended to a tracked .githooks/OVERRIDE-LOG.md in
+# your working tree (not just a stderr line that scrolls away) --
+# commit that file in your next push so the override survives past
+# this shell's scrollback and is visible to a human reading the diff.
+# This is a conscious, typed override, not a default: the override
+# exists for real emergencies, using it is itself something to mention
+# to the human, not a quiet workaround.
+#
+# --- Setup (once per clone, not committed automatically -- git does
+# not track hook wiring itself, only this script's content):
+#   git config core.hooksPath .githooks
+# A fresh clone of this repo does NOT have this hook active until that
+# command is run in it. Consider naming this in your AGENT_RULES.md /
+# AGENTS.md onboarding doc so a new session doesn't miss it. If your
+# product spans more than one repository, copy and wire this hook into
+# EACH repo independently -- a rule (or a hook) living in only one repo
+# doesn't reach a session rooted in a sibling repo. Also create
+# `.githooks/OVERRIDE-LOG.md` alongside this file (a short header plus
+# "No entries yet." is enough) -- the hook appends to it but doesn't
+# create it from scratch.
+
+protected_branches="main master"
+
+z40=0000000000000000000000000000000000000000
+
+# A real typed reason, not a bare boolean-flag value in either
+# direction -- trim whitespace, then reject empty, "1" (the documented
+# bare-flag case), any falsy spelling (0/false/no/off -- a real
+# adversarial-review finding on a downstream project: the old bare
+# `!= "1"` check let ALLOW_DIRECT_MAIN_PUSH="0" pass as a valid reason
+# and silently bypass protection), and any truthy spelling (true/yes/on)
+# too -- someone setting ALLOW_DIRECT_MAIN_PUSH="true" thinking it means
+# "enabled" is exactly as much a non-reason as "false" meaning
+# "disabled" (the original downstream fix only closed the falsy side,
+# caught by a later fresh review pass). Case-insensitive.
+# Newlines/tabs are flattened to spaces BEFORE trimming: `sed` works line
+# by line, so a value like "<newline>0" would otherwise keep its "0" line
+# intact past the trim and validate as a real reason -- and, logged raw,
+# a multi-line value could write forged extra rows into OVERRIDE-LOG.md
+# (found by an independent review of this change; the downstream copy this
+# validation was ported from has the same gap). The flattened, trimmed
+# value is also what gets logged below, never the raw variable.
+override_reason_trimmed=$(printf '%s' "$ALLOW_DIRECT_MAIN_PUSH" | tr '\r\n\t' '   ' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+case "$override_reason_trimmed" in
+  ""|1|0|[Ff][Aa][Ll][Ss][Ee]|[Nn][Oo]|[Oo][Ff][Ff]|[Tt][Rr][Uu][Ee]|[Yy][Ee][Ss]|[Oo][Nn])
+    override_reason_valid=0
+    ;;
+  *)
+    override_reason_valid=1
+    ;;
+esac
+
+while read local_ref local_sha remote_ref remote_sha; do
+  branch_name=$(echo "$remote_ref" | sed -n 's#^refs/heads/##p')
+
+  for protected in $protected_branches; do
+    if [ "$branch_name" = "$protected" ]; then
+      if [ "$local_sha" = "$z40" ]; then
+        action_desc="DELETE of"
+      else
+        action_desc="push to"
+      fi
+
+      if [ "$override_reason_valid" = "1" ]; then
+        repo_root=$(git rev-parse --show-toplevel 2>/dev/null)
+        if [ -n "$repo_root" ]; then
+          log_file="$repo_root/.githooks/OVERRIDE-LOG.md"
+          # user.name is unverified local config and may contain newlines: flatten it
+          # the same way as the reason, or it can forge extra OVERRIDE-LOG.md rows.
+          log_user=$(git config user.name 2>/dev/null | tr '\r\n\t' '   ')
+          [ -z "$log_user" ] && log_user=unknown
+          printf -- '- %s | user=%s | branch=%s | %s | sha=%s | reason: %s\n' \
+            "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" \
+            "$log_user" \
+            "$protected" "$action_desc" "$local_sha" "$override_reason_trimmed" >> "$log_file"
+        fi
+        echo "pre-push: override used ($action_desc '$protected') -- logged to .githooks/OVERRIDE-LOG.md. Commit that log in your next push, and mention this to the human." >&2
+        continue 2
+      fi
+
+      echo "" >&2
+      # templates/setup-hooks.sh.template AND templates/verify-setup.sh.template
+      # both grep stdout for the literal string "pre-push REJECTED" to
+      # confirm the hook works -- if you reword this line, update both
+      # grep patterns too, or their self-tests silently stop detecting a
+      # real rejection (found downstream, adopted here, 2026-09-22).
+      echo "pre-push REJECTED: direct $action_desc '$protected' is not allowed from this clone." >&2
+      echo "" >&2
+      echo "Every change goes through a branch + a real PR, with CI green, per AGENT_RULES.md's 'Git operations' rule." >&2
+      echo "A PR merge (e.g. 'gh pr merge') updates '$protected' through the platform's API and never trips this hook -- use that instead of a local merge + push." >&2
+      echo "" >&2
+      echo "Genuine exception, approved by a human in the moment: ALLOW_DIRECT_MAIN_PUSH=\"<real reason>\" git push ..." >&2
+      echo "(a bare 1/0/true/false/yes/no/on/off with no real reason is not accepted.)" >&2
+      echo "" >&2
+      echo "Reminder, not something this hook can enforce: --no-verify skips this check entirely. Don't use it to route around this -- see AGENT_RULES.md." >&2
+      echo "" >&2
+      exit 1
+    fi
+  done
+done
+
+exit 0

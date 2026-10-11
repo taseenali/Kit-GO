@@ -1,0 +1,78 @@
+name: collaborator-log-reminder
+
+# Informational only, never blocks merge -- this repo has no
+# GitHub-enforced branch protection to make a "required" check actually
+# gate anything anyway (a status check failing without branch protection
+# is advisory only; don't let this workflow's own exit code imply a
+# guarantee it can't back -- found the hard way earlier building this
+# kit's other checks, 2026-09-23). Reminds a PR's author to update their
+# own personal log (docs/collaborators/<their-username>.md, see
+# templates/COLLABORATOR-LOG.md.template) if this PR doesn't touch it.
+#
+# Deliberately checks FILE PRESENCE IN THE DIFF, not prose content and
+# not identity comparison -- the two things that made this kit's earlier
+# CI-check attempts unreliable (a checkbox-completeness gate that broke
+# on reworded prose; a merged_by identity check that's toothless on a
+# solo-owner project). "Did this PR's diff include a file at this exact
+# path" is unambiguous and doesn't depend on anyone's GitHub identity
+# setup.
+#
+# Exempt: bot-authored PRs (verified via the real `user.type` field on
+# the PR's author, confirmed via the GitHub API to be "Bot" for a real
+# bot account and "User" for a real human one, 2026-09-23) -- bots don't
+# maintain personal logs, see AGENT_RULES.md's "Bot/CI-authored PRs" rule.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  check-log-touched:
+    if: github.event.pull_request.user.type != 'Bot'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check whether this PR touches the author's own collaborator log
+        env:
+          GH_TOKEN: ${{ github.token }}
+          AUTHOR: ${{ github.event.pull_request.user.login }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+        run: |
+          expected_path="docs/collaborators/${AUTHOR}.md"
+
+          # GitHub Actions runs a `run:` step with no explicit `shell:`
+          # as `bash -e {0}` ON THE RUNNER ITSELF -- errexit is already
+          # on before this script's first line runs, REGARDLESS of
+          # whether the script writes its own `set -e`. An earlier
+          # version of this comment claimed removing that line disabled
+          # errexit; it does not, and that "fix" was a genuine no-op --
+          # `changed_files=$(cmd)` as a plain assignment still aborts
+          # the whole step on a failing `cmd` under the runner's default
+          # shell. The `&&`/`||` form below is what actually protects
+          # this from -e (a command that isn't the last one in an
+          # AND-OR list doesn't trigger errexit on its own failure) --
+          # confirmed via GitHub's own docs and by reproducing the bug
+          # directly (an adversarial review pass caught the first,
+          # inert "fix" attempt, 2026-09-23).
+          changed_files=$(gh api "repos/$REPO/pulls/$PR_NUMBER/files" --paginate --jq '.[].filename' 2>&1) && api_exit=0 || api_exit=$?
+
+          if [ "$api_exit" -ne 0 ]; then
+            echo "::warning::Could not fetch this PR's changed-files list (API error, exit $api_exit) -- skipping the collaborator-log check this run rather than failing on an unrelated infrastructure issue. Output: $changed_files" >&2
+            exit 0
+          fi
+
+          # Exact whole-line match (-x), not a substring match -- a
+          # substring match would false-positive on an unrelated file
+          # like docs/collaborators/AUTHOR.md.bak or a nested path that
+          # merely contains this string (found by a fresh review pass
+          # on a downstream adopter, 2026-09-23).
+          if printf '%s\n' "$changed_files" | grep -qFx "$expected_path"; then
+            echo "OK: this PR touches $expected_path."
+            exit 0
+          fi
+
+          echo "::warning::This PR doesn't touch $expected_path -- consider adding a dated entry (see templates/COLLABORATOR-LOG.md.template in taseenali/Kit-GO). Informational only, does not block merge."

@@ -1,0 +1,161 @@
+#!/bin/sh
+# Blocks a `git commit` made while a protected branch (main/master) is
+# checked out -- the commit-time companion to pre-push-hook.template,
+# catching the same mistake one boundary earlier.
+#
+# Why this exists, not just pre-push: a real incident on a downstream
+# project. After a correct `git checkout main && git pull` (the normal
+# post-merge sync), the very next, unrelated `git commit` landed
+# directly on local `main` -- nothing stopped it, because the only
+# mechanical check in this kit ran at push time. It was caught by luck
+# (an incidental `git branch --show-current` before reporting back), and
+# even uncaught, pre-push would have rejected the push -- but only after
+# a wasted commit already existed locally, needing a branch-and-reset
+# fix-up. Catching it here is strictly cheaper: a rejected `git commit`
+# with a clear reason, no stray commit to clean up.
+#
+# Honest scope -- mirrors pre-push-hook.template's own, one boundary
+# earlier. This hook defends against FORGETTING which branch is checked
+# out, not against a deliberate decision to route around it. It does NOT
+# stop `git commit --no-verify` (skips this hook entirely -- put a real
+# "never use --no-verify" rule in your AGENT_RULES.md, this comment is
+# not that rule), `git -c core.hooksPath= commit` / `git config --unset
+# core.hooksPath` (disables it, no trace), deleting or renaming this
+# file, or a clone where it was never wired (git does not track hook
+# wiring -- see the setup note below). Beyond those, `pre-commit` does
+# not fire at all for several ways a commit can land on a branch:
+# `git merge` (a clean, completed merge commit; a `git merge --squash`
+# followed by a manual `git commit`, or a conflicted merge/cherry-pick
+# you finish with `git commit`/`--continue`, IS caught), a clean
+# `git cherry-pick`, `git
+# rebase`/`git am` replaying commits, `git revert`, `git commit-tree` +
+# `update-ref`, or anything done through the platform's web UI or API. So a local
+# `git merge feature` while on `main` is NOT caught here -- pre-push
+# (and, ultimately, a server-side gate) is still the backstop for that.
+# This hook narrows the most common absent-minded case; it does not
+# replace pre-push.
+#
+# Detached HEAD (including mid-rebase) is allowed -- there's no branch
+# to protect. A commit on an UNBORN branch (no commit exists yet) is also
+# allowed: that's a brand-new repository's first commit -- initial
+# scaffolding on `main` is the normal, legitimate case -- and, as a side
+# effect, an orphan branch made with `git switch --orphan` in an existing
+# repo, which is also allowed. pre-push still blocks pushing either one
+# directly to the remote's `main` if that's protected.
+#
+# Deliberate, visible escape hatch for a genuine exception (a human-
+# approved emergency, never silent -- see AGENT_RULES.md): set
+# ALLOW_DIRECT_MAIN_COMMIT="<real reason>" for that one commit. Same
+# validation as pre-push's ALLOW_DIRECT_MAIN_PUSH -- an empty/whitespace
+# value, 1/0, or any true/false/yes/no/on/off spelling (any case) is
+# rejected; a reason has to actually be typed. A used override is
+# appended to the SAME tracked .githooks/OVERRIDE-LOG.md pre-push uses,
+# in your working tree during this commit -- so, exactly as that file's
+# header explains for pre-push, the entry itself can only be committed
+# in a LATER commit made on a branch (not on main -- this hook would
+# reject that commit), e.g. as part of your next PR, not the one that
+# triggered it. Using it is itself
+# something to mention to the human, not a quiet workaround.
+#
+# --- Setup (once per clone, not committed automatically -- git does not
+# track hook wiring itself, only this script's content):
+#   cp templates/pre-commit-hook.template .githooks/pre-commit
+#   chmod +x .githooks/pre-commit
+#   git config core.hooksPath .githooks   # same setting pre-push uses
+# `scripts/setup-hooks.sh` (from templates/setup-hooks.sh.template) makes
+# this executable for you when .githooks/pre-commit is present, but its
+# synthetic self-test only exercises pre-push -- this hook's own check
+# depends on the real checked-out branch, so confirm it by hand once,
+# AFTER the repository has at least one commit (an unborn branch is
+# deliberately allowed, so on a fresh repo the test would pass silently
+# and leave a stray commit): on `main`, `git commit --allow-empty -m
+# test` must print "pre-commit REJECTED". If it does NOT reject, undo
+# the test commit with `git reset --soft HEAD~1` and check the wiring. If your product spans more than one repository,
+# copy and wire this into EACH repo independently, same as pre-push.
+# Create `.githooks/OVERRIDE-LOG.md` too (see OVERRIDE-LOG.md.template).
+# The `>>` append creates the file if `.githooks/` exists, but if that
+# directory is missing the append silently fails and the override still
+# goes through, unlogged -- same as pre-push.
+
+protected_branches="main master"
+
+# Same validation as pre-push-hook.template -- if you change one, change
+# the other (a separate copy, not a sourced library, so each hook stays
+# copyable on its own, same tradeoff verify-setup/setup-hooks already
+# document for their duplicated synthetic test).
+# Newlines/tabs flattened to spaces before trimming, and the flattened
+# value (not the raw variable) is what gets logged -- see
+# pre-push-hook.template for why (a "<newline>0" value would otherwise
+# validate, and a multi-line value could forge OVERRIDE-LOG.md rows).
+override_reason_trimmed=$(printf '%s' "$ALLOW_DIRECT_MAIN_COMMIT" | tr '\r\n\t' '   ' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+case "$override_reason_trimmed" in
+  ""|1|0|[Ff][Aa][Ll][Ss][Ee]|[Nn][Oo]|[Oo][Ff][Ff]|[Tt][Rr][Uu][Ee]|[Yy][Ee][Ss]|[Oo][Nn])
+    override_reason_valid=0
+    ;;
+  *)
+    override_reason_valid=1
+    ;;
+esac
+
+# Brand-new repository: no commit exists yet, so there is nothing to
+# protect and nothing it could have been branched from.
+if ! git rev-parse -q --verify HEAD >/dev/null 2>&1; then
+  exit 0
+fi
+
+# Compare the FULL ref name, not `--short`: `symbolic-ref --short` prints
+# "heads/main" instead of "main" whenever a tag (or other ref) shares the
+# branch's name, so a short-name comparison silently stops matching -- a
+# `git tag main` disabled this hook entirely (reproduced by an independent
+# review of this change; pre-push is immune because it already parses the
+# full refs/heads/... name). Empty output = detached HEAD (including
+# mid-rebase): no branch to protect.
+current_ref=$(git symbolic-ref -q HEAD 2>/dev/null)
+if [ -z "$current_ref" ]; then
+  exit 0
+fi
+
+# Case-insensitive: on a case-insensitive filesystem (Windows, macOS
+# default) `git checkout MAIN` sets HEAD to refs/heads/MAIN while commits
+# still land in the real `main` ref, so an exact comparison was bypassed
+# by a plain porcelain command (found by an independent review). Side
+# effect: a genuinely distinct `Main` branch on Linux is also blocked --
+# an accepted trade.
+current_ref_lc=$(printf '%s' "$current_ref" | tr 'A-Z' 'a-z')
+
+for protected in $protected_branches; do
+  if [ "$current_ref_lc" = "refs/heads/$protected" ]; then
+    if [ "$override_reason_valid" = "1" ]; then
+      repo_root=$(git rev-parse --show-toplevel 2>/dev/null)
+      if [ -n "$repo_root" ]; then
+        log_file="$repo_root/.githooks/OVERRIDE-LOG.md"
+        # user.name is unverified local config and may contain newlines: flatten it
+        # the same way as the reason, or it can forge extra OVERRIDE-LOG.md rows.
+        log_user=$(git config user.name 2>/dev/null | tr '\r\n\t' '   ')
+        [ -z "$log_user" ] && log_user=unknown
+        printf -- '- %s | user=%s | branch=%s | COMMIT | reason: %s\n' \
+          "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" \
+          "$log_user" \
+          "$protected" "$override_reason_trimmed" >> "$log_file"
+      fi
+      echo "pre-commit: override used (commit on '$protected') -- logged to .githooks/OVERRIDE-LOG.md (the working-tree file is now modified; commit it from a branch, as part of your next PR, not on '$protected'). Mention this to the human." >&2
+      exit 0
+    fi
+
+    echo "" >&2
+    echo "pre-commit REJECTED: committing directly on '$protected' is not allowed from this clone." >&2
+    echo "" >&2
+    echo "Every change goes through a branch + a real PR, per AGENT_RULES.md's 'Git operations' rule." >&2
+    echo "You are on '$protected' -- a common cause is a correct 'git checkout $protected && git pull' immediately followed by new work." >&2
+    echo "Create a branch first:  git switch -c <new-branch-name>   (your staged changes come with you)" >&2
+    echo "" >&2
+    echo "Genuine exception, approved by a human in the moment: ALLOW_DIRECT_MAIN_COMMIT=\"<real reason>\" git commit ..." >&2
+    echo "(a bare 1/0/true/false/yes/no/on/off with no real reason is not accepted.)" >&2
+    echo "" >&2
+    echo "Reminder, not something this hook can enforce: --no-verify skips this check entirely. Don't use it to route around this -- see AGENT_RULES.md." >&2
+    echo "" >&2
+    exit 1
+  fi
+done
+
+exit 0

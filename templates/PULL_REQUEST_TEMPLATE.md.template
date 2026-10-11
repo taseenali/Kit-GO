@@ -1,0 +1,64 @@
+## Change tier
+<!-- See .github/AGENT_RULES.md "Review rigor scales with what's actually at stake" --
+     full self-merge preconditions (including what "CI is green" actually
+     requires when this PR's paths don't trigger CI) live there, not here. -->
+
+- [ ] Tier 0 — docs/wording only (self-merged once the full suite is confirmed green — run unconditionally, never skipped because the PR is "docs-only"; via CI if it triggers (a path-filtered workflow may not on a docs-only diff), otherwise run locally and pasted below)
+- [ ] Tier 1 — real code change (needs a **fresh** independent review pass, not self-confirmed by the authoring context; self-merged once that pass is clean and the suite is confirmed green — no human click required)
+- [ ] Tier 2 — schema / load-bearing logic / data-handling / secrets / legal-compliance-adjacent behavior / **or this PR touches any file on `AGENT_RULES.md`'s own "Tier 2 — Load-bearing / high blast radius" list** (check there, not here — that's the one real copy, kept in exactly one place on purpose) (needs Tier 1's fresh pass + a deeper/multi-agent review **required by default** if available — if genuinely unavailable *and the human has confirmed that* (not just the agent's own belief) *and doesn't want to pay to unblock it*, the local multi-pass fallback (fresh pass + one adversarial pass on a genuinely different model) stands in, clearly labeled as such — a human-stated, PR-specific waiver of both is the only other exception, never a standing skip — + a written risk summary (incl. the "If challenged" section below) + real, informed human sign-off — **the agent never merges this, by any mechanism, even if explicitly told to; it hands over the ready-to-run command and stops, and the human runs the actual merge themselves** — see AGENT_RULES.md's "What 'never self-merged by an agent' actually means")
+
+## What changed
+
+
+
+## Why
+
+
+
+## Tests run
+
+<!-- Paste the real local test output. A claim of "tests pass" without the
+actual output is not sufficient -- see .github/AGENT_RULES.md. -->
+
+```
+
+```
+
+## If challenged — what I'd still need to check
+
+<!-- Required (Tier 2: always; Tier 0/1: a line or two is enough, but not "none"
+     without saying what was ruled out and how). Before presenting this as
+     ready, answer honestly: if the reviewer asked "are you sure it's ready
+     and safe?" right now, what would I actually go and find? Specific
+     unverified claims, paths only read and never run, interactions with
+     other open work not traced. Re-answer after every fix commit. See
+     AGENT_RULES.md's "Risk summary — required format". -->
+
+
+## Docs updated
+
+- [ ] Not applicable — no behavior/data/schema change
+- [ ] Yes — updated: <!-- list the files -->
+
+## Checklist
+
+- [ ] No secrets (`.env`, tokens, keys) in this diff
+- [ ] Nothing under `{{DATA_DIR}}` is staged
+- [ ] Full suite passes locally (see "Tests run" above)
+- [ ] This PR stays within the scope of the task/issue it's for
+
+## Definition of Done reminders
+<!-- These are visibility, not a verification gate -- nothing in this repo
+     mechanically checks these boxes are true (a self-attestation checkbox
+     that gated its own merge would just get ticked regardless, destroying
+     the one signal it had -- found by an adversarial review, 2026-09-23).
+     They exist so these items are in view at the point of action instead
+     of living only in AGENT_RULES.md's own Definition of Done section,
+     which nothing forces anyone to re-read before every PR. -->
+
+- [ ] Answer archive updated, if this PR followed a substantive user question/decision (n/a if not)
+- [ ] Collaborator log updated (`docs/collaborators/<your-username>.md`), if this project uses one (n/a if not)
+- [ ] Open research queue checked before this pass, if sized beyond a small fix (n/a if small)
+- [ ] A kit bug or reusable idea found during this PR (not a project-specific issue) is recorded in `docs/KIT-ISSUES-LOG.md`, not fixed via an upstream PR in passing (n/a if none found — see `AGENT_RULES.md`'s "Finding a bug in the governance kit itself", which covers an idea as well as a defect)
+- [ ] Any standing guidance the user gave this turn is captured somewhere durable (n/a if none given)
+- [ ] Every "done"/"verified"/"tests pass" claim in this PR was actually checked this turn, not assumed

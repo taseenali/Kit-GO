@@ -1,0 +1,30 @@
+# .githooks/pre-push must execute as a Unix shell script on any
+# platform that clones this repo -- pin it to LF regardless of the
+# clone's core.autocrlf setting. A CRLF-corrupted hook can fail to
+# execute in a way that's indistinguishable from the hook simply not
+# being wired -- a silently-absent guardrail is a real risk, not a
+# cosmetic one (found by an adversarial review of this kit's own
+# pre-push hook, 2026-09-17).
+.githooks/** text eol=lf
+
+# Same reasoning for any workflow file with a `run: |` block -- a
+# CRLF-corrupted copy can leave a literal \r at the end of every
+# embedded shell line, which bash treats as part of the command (a
+# classic "$'\r': command not found"-shaped failure). This kit's own
+# copy of these files (as .yml.template, before you copy them in) is
+# pinned the same way for the same reason -- ported here so your real,
+# post-copy .yml files get the identical protection, not just the
+# kit's own source templates.
+.github/workflows/*.yml text eol=lf
+
+# Same reasoning again for setup-hooks.sh and verify-setup.sh, once
+# copied out of templates/setup-hooks.sh.template and
+# templates/verify-setup.sh.template (see SETUP-GUIDE.md step 1 for the
+# real copy destinations) -- these are real, executed shell
+# scripts, not just YAML with embedded shell, so the identical
+# CRLF-corrupts-a-shebang-or-a-line risk applies directly, the same as
+# .githooks/pre-push above (found missing here by an adversarial review
+# of this exact rule's own coverage, 2026-09-23 -- the workflow-file
+# rule above was ported from this kit's own .gitattributes without also
+# porting the equivalent for these two scripts).
+scripts/*.sh text eol=lf

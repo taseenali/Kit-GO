@@ -1,0 +1,44 @@
+name: kit-go-tests
+
+# Runs the Kit-GO test suite (tests/kit-go/run.sh) on Linux, macOS and
+# Windows so the claims in templates/KIT-GO.md.template -- especially "the
+# read-only commands leave the whole tree, including .git, byte-identical"
+# -- are checked on more than one machine and, via Windows, against a CRLF
+# checkout (the bug class that bit this suite once). No paths: filter, on
+# purpose (see tests-python.yml.template's header for why a path-filtered
+# test workflow is a hole): a docs-only change can still break the
+# playbook-vs-registry consistency checks.
+#
+# Whether this is a GitHub-ENFORCED required check depends on plan and repo
+# visibility (a free-tier PRIVATE repo has no branch protection; this
+# public repo can enable it). It still runs and reports on every PR; it does not by
+# itself block a merge, so a human still has to look at it.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+# Cancel superseded PR runs, but never a push-to-main run: an intermediate
+# main commit should still end up with a result.
+concurrency:
+  group: kit-go-tests-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  kit-go:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run Kit-GO test suite
+        run: bash tests/kit-go/run.sh

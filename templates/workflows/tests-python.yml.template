@@ -1,0 +1,65 @@
+name: tests
+
+# Runs the real test suite. Design your tests to be network-free and
+# secret-free from the start (real captured fixtures, or injectable stubs
+# for anything that would otherwise need live network/API calls) -- this
+# workflow should get a genuine pass/fail with zero configured secrets,
+# not a skip. See this kit's LESSONS-LEARNED.md.
+#
+# Whether this is a GitHub-ENFORCED required check depends on your plan
+# and repo visibility -- classic branch protection and rulesets both
+# require a paid plan for a PRIVATE repo (confirmed live limit, see
+# LESSONS-LEARNED.md). If you're on the free tier with a private repo,
+# this workflow still runs and reports pass/fail on every PR, it just
+# doesn't block a merge by itself -- say so explicitly here rather than
+# implying enforcement that isn't real.
+#
+# Deliberately NO `paths:` filter on either trigger below. An earlier
+# version of this template filtered to `{{CODE_DIR}}/**` + this file,
+# which means a docs-only PR never triggers this workflow at all -- not
+# "skipped and green," but an empty check rollup (confirmed live on a
+# real downstream project, 2026-09-24). A suite that structurally cannot
+# run on exactly the PRs AGENT_RULES.md's Tier 0 lets an agent self-merge
+# is no check at all, and a docs-only change is a real regression path
+# whenever any test asserts on doc/schema content. The suite is cheap;
+# running it on every PR is the safer default. If you re-add a `paths:`
+# filter anyway (a large monorepo, real Actions-minutes pressure), you
+# own the gap it reopens: AGENT_RULES.md's Tier 0 then requires running
+# the suite locally and pasting the output, because CI will not.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Cancel a superseded run when new commits land on the same PR/branch --
+# don't burn Actions minutes on a run whose result no longer matters.
+concurrency:
+  group: tests-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pytest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "{{PYTHON_VERSION}}"
+
+      - name: Install dependencies
+        working-directory: "{{CODE_DIR}}"
+        run: pip install -r requirements-dev.txt  # should pull in requirements.txt too
+
+      # No agent-worktree exclusion here on purpose: CI never has a coding
+      # agent's `.claude/worktrees/`, `pytest tests/` is already scoped to
+      # one directory, and pytest's default `norecursedirs` skips
+      # dot-directories (verified on pytest 9.1). The real exposure is a
+      # LOCAL foreground run while a background agent is active -- see
+      # LESSONS-LEARNED.md ("Multi-agent coordination").
+      # Don't add `--ignore-glob='**/.claude/...'`: pytest anchors it at the
+      # cwd, so it never matches a repo-root `.claude/`; use
+      # `--ignore=.claude/worktrees` if you ever need one.
+      - name: Run test suite
+        working-directory: "{{CODE_DIR}}"
+        run: pytest tests/ -v

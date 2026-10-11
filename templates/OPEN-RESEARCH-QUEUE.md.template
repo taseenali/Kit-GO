@@ -1,0 +1,61 @@
+# Open Research Queue
+
+**Purpose:** every currently-open research question in one place, checked
+at the start of any pass sized beyond a small fix (per this project's
+`AGENT_RULES.md` Definition of Done). A question here is never described
+as "exhausted" as a permanent state — only as "no new angle found yet,"
+with what would need to change to make another attempt worthwhile.
+
+Without this file, a research question that stalls tends to get written up
+once, then never revisited — nothing pulls it back into view for a future
+pass. The fix isn't "try harder to remember" — it's a place that gets
+checked as a matter of process, the same way a test suite gets run as a
+matter of process rather than trusted to memory.
+
+## {{RQ-ID}} — {{one-line question}}
+
+**Question:** {{the actual question, precise enough that a fresh attempt
+knows exactly what it's trying to answer}}
+
+**Status:** {{Open / Open, narrowed / Resolved — date}}
+
+**Attempts:**
+- {{Date}} — {{what was tried, and the REAL result — including a ruled-out
+  hypothesis with the evidence that ruled it out, not just "didn't find
+  anything"}}
+
+**What would move this forward:** {{the specific next lever — a human
+doing something an automated fetch can't (e.g. reading a page that blocks
+bots but not browsers), a paid data source, a domain expert, a deeper
+research tool}}
+
+**Perplexity / deep-research handoff prompt (if genuinely needed):**
+
+> {{Only write this when web search has genuinely been tried and come up
+> short. Include what's already been ruled out, so the next attempt
+> doesn't waste time re-checking the same dead ends.}}
+
+---
+
+## Process notes for whoever maintains this file
+
+- A stalled question is `Open, narrowed`, not `Exhausted` or `Closed` —
+  language matters here, it's what keeps the question checkable instead of
+  quietly forgotten.
+- When picking this up again, try a genuinely NEW angle before repeating
+  a prior attempt's searches — record why the new angle was chosen.
+- Ruling a hypothesis OUT with real evidence (a live API call, a direct
+  fetch, a reproducible test) is real progress — record it as such, not as
+  "still don't know."
+- Only write a Perplexity/deep-research prompt for a question that's
+  actually a research question (explain a documented phenomenon, find
+  corroborating expert/practitioner knowledge). A question that's really a
+  structured-data lookup (is entity X related to entity Y) needs a data
+  source or a build task, not a research tool — don't force-fit one.
+- **Prior-art / comparable-project questions belong here too**, not just
+  domain research. Before committing to a genuinely novel technical
+  approach (see `STAGE-0-RESEARCH-ENRICHMENT.md`'s Dimension 3 and its
+  own third standing exception), log what was checked and found — an
+  inconclusive result is a real, loggable outcome ("open, narrowed"),
+  not a reason to skip logging it or to block the build waiting for a
+  definitive answer.

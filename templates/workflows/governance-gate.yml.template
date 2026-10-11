@@ -1,0 +1,155 @@
+name: governance-gate
+
+# Server-side detector for a direct push to `main` (or `master`) that
+# didn't go through a PR -- the one gap a client-side `pre-push` hook
+# (see templates/pre-push-hook.template) cannot mechanically close,
+# since a local hook can never bind an actor on the client (--no-verify,
+# `core.hooksPath` unset, a different clone, or a change made directly
+# on the platform's web UI all walk straight past it). This runs on the
+# platform's own infrastructure, after the fact -- it can't undo a bad
+# push, but it can't be silently disabled by anything that happens on a
+# developer's machine either, which is the property the hook alone
+# doesn't have.
+#
+# If your repo has no GitHub-enforced branch protection (true by default
+# on a private repo on the free tier -- verify with a real API call to
+# branches/<default-branch>/protection, a 403/404 means it's not
+# enforced), this workflow plus the pre-push hook are the PRIMARY
+# enforcement of "no direct push to the default branch," not
+# defense-in-depth. Say so explicitly in your own project's docs once
+# you've actually checked, rather than assuming either way.
+#
+# How it works: GitHub's own "list pull requests associated with a
+# commit" API returns the real PR for a normal PR-merge commit and an
+# empty array for a commit that reached the default branch any other
+# way. That distinction is what this job checks -- detection, not
+# prevention. Deliberately its own workflow, not folded into your main
+# tests workflow -- it must run on every push to the default branch
+# regardless of which paths changed, even when your tests workflow is
+# path-filtered.
+#
+# Covers both `main` and `master` below so a future accidental push to a
+# re-created `master` isn't silently uncovered by this gate even if your
+# hook still treats it as protected -- edit the branch lists in `on:`
+# and the deletion job's `if:` if your project uses neither name.
+#
+# Also listens for `delete` (a separate GitHub event from `push` --
+# deleting a ref never fires `push`), so a direct deletion of a
+# protected branch gets flagged too, not just a push to it. In practice
+# this most often only ever reaches a non-default protected branch name
+# (e.g. a leftover `master` after a rename to `main`): most platforms
+# refuse to delete a repo's *current* default branch, so if `main` is
+# your default, that half of the condition below is typically a
+# defensive no-op, not a claim that deleting today's default branch is
+# actually reachable -- verify against your own repo's actual default
+# branch before assuming either way. Deletion is informational, not
+# automatically a violation: a legitimate `master` -> `main` rename
+# deletes `master` once, on purpose, and that history shouldn't read as
+# a red flag forever after -- a human confirming intent is the right
+# response, not an automatic failure.
+#
+# permissions.pull-requests: read is required for the
+# commits/{sha}/pulls call below -- an explicit `permissions:` block
+# sets every unlisted permission to `none`, so omitting this would make
+# every legitimate PR-merge commit look PR-less and fail this gate on
+# every single merge, not just real violations.
+#
+# If your product spans more than one repository, copy this into EACH
+# repo independently, same as the pre-push hook -- a workflow living in
+# only one repo doesn't watch a sibling repo's own default branch. See
+# this kit's SETUP-GUIDE.md, "A product that spans more than one
+# repository."
+#
+# The issue body below is built with `printf` (%s args), not a literal
+# multi-line string inlined into this YAML block scalar -- an earlier
+# version of this file broke exactly that way: any physical line
+# indented less than the block's own indentation ends the block scalar
+# right there, so YAML tries to parse the issue-body prose as document
+# structure and fails to load the whole workflow (confirmed directly:
+# `python -c "import yaml; yaml.safe_load(open('this file'))"` raised
+# "could not find expected ':'" at the under-indented line; GitHub's own
+# API separately reports a workflow with unparseable YAML by its file
+# path instead of its real `name:`, which is its own tell if you ever
+# see that -- found by an adversarial review pass, and independently
+# confirmed still present in this exact template months later because
+# the fix made on a downstream adopter's copy was never ported back
+# here, 2026-09-23). printf's format string stays on one physical line,
+# so this can't recur the same way -- if you edit the issue body, keep
+# it inside the printf format string rather than un-escaping it back
+# into a literal multi-line `--body "..."` argument.
+
+on:
+  push:
+    branches: [main, master]
+  delete:
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: read
+
+jobs:
+  check-commit-came-from-a-pr:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify the pushed commit is associated with a merged PR
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ github.sha }}
+          REPO: ${{ github.repository }}
+          ACTOR: ${{ github.actor }}
+          BRANCH: ${{ github.ref_name }}
+        run: |
+          set -e
+
+          # The very first commit in a repo's history can never have a
+          # PR (nothing existed to open one against) -- the only
+          # legitimate, structural exception, not an agent-usable one.
+          # Checked via the API directly: a root commit has zero parents.
+          parent_count=$(gh api "repos/$REPO/commits/$SHA" --jq '.parents | length')
+          if [ "$parent_count" = "0" ]; then
+            echo "Root commit of the repo -- no PR possible, nothing to check."
+            exit 0
+          fi
+
+          pr_count=$(gh api "repos/$REPO/commits/$SHA/pulls" --jq 'length')
+
+          if [ "$pr_count" -gt 0 ]; then
+            echo "OK: commit $SHA is associated with $pr_count pull request(s)."
+            exit 0
+          fi
+
+          echo "::error::Commit $SHA reached $BRANCH with NO associated pull request. This bypassed the PR-required rule in AGENT_RULES.md -- either a direct push (git push --no-verify, an unconfigured clone, or core.hooksPath disabled) or a change made directly on the platform's web UI."
+
+          body=$(printf 'Commit `%s` (pushed by @%s) reached `%s` with no associated pull request, per `repos/%s/commits/%s/pulls`.\n\nThis is a real violation of the "never push directly to the default branch" rule in AGENT_RULES.md -- the local `.githooks/pre-push` hook is supposed to catch this before it happens; this workflow exists specifically because that hook can be bypassed (`--no-verify`, an unconfigured clone, `core.hooksPath` unset, or a change made directly on the platform'"'"'s web UI) and none of those leave any other trace.\n\n**Action needed:** a human should review what changed in this commit and confirm whether it was a deliberate, approved exception (and if so, note why here) or a real process gap to fix.' "$SHA" "$ACTOR" "$BRANCH" "$REPO" "$SHA")
+
+          gh issue create \
+            --repo "$REPO" \
+            --title "Governance gate: commit $SHA reached $BRANCH with no PR" \
+            --body "$body" \
+            --label "governance" 2>/dev/null || echo "::warning::Could not open an issue automatically (label 'governance' may not exist yet) -- the error annotation above is still the record."
+
+          exit 1
+
+  flag-protected-branch-deletion:
+    if: github.event_name == 'delete' && github.event.ref_type == 'branch' && (github.event.ref == 'main' || github.event.ref == 'master')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Flag the deletion for human confirmation
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          ACTOR: ${{ github.actor }}
+          DELETED_REF: ${{ github.event.ref }}
+        run: |
+          set -e
+          echo "::warning::Protected branch '$DELETED_REF' was deleted by @$ACTOR."
+
+          body=$(printf 'Protected branch `%s` was deleted by @%s.\n\nThis is informational, not automatically a violation -- a legitimate rename (e.g. `master` -> `main`) legitimately deletes the old branch once, on purpose. A human should confirm whether this deletion was intentional/expected and close this issue, or treat it as a real process gap if not.' "$DELETED_REF" "$ACTOR")
+
+          gh issue create \
+            --repo "$REPO" \
+            --title "Governance gate: protected branch $DELETED_REF was deleted" \
+            --body "$body" \
+            --label "governance" 2>/dev/null || echo "::warning::Could not open an issue automatically (label 'governance' may not exist yet) -- the warning annotation above is still the record."

@@ -1,0 +1,88 @@
+# {{PROJECT_NAME}}
+
+**Read `.github/AGENT_RULES.md` before making any change in this repo.**
+It is the binding rulebook (review tiers, git rules, secrets, Definition
+of Done) — this file only exists to make sure that one actually gets
+read, since nothing about a fresh session guarantees it otherwise.
+
+Copy this to the project root as `CLAUDE.md` (Claude Code auto-loads
+this filename) — or `AGENTS.md` if your primary coding agent uses that
+convention instead; several tools are converging on it. If more than one
+agent/tool is in use on this project, keep both filenames present with
+the same content rather than picking one.
+
+## Why this file exists at all
+
+This kit depends entirely on an agent actually reading
+`AGENT_RULES.md` — but nothing forces that to happen automatically
+unless the agent's own tooling auto-loads *something* at session start.
+This file is that something. A rule that only lives in a document
+nobody's tooling opens automatically is a rule that gets missed, not
+because it's wrong, but because it was never in view — see this kit's
+own `LESSONS-LEARNED.md` ("A rule that isn't visible at the point of
+action gets ignored, however well-written").
+
+## What to do at the start of a session
+
+1. If you haven't already this session, read `.github/AGENT_RULES.md`
+   in full — not a summary of it from memory.
+2. Check whether this clone's setup is actually current: run `sh
+   scripts/verify-setup.sh` if it exists in this repo (it's read-only —
+   safe to run any time, it never changes anything). If it reports a
+   failure, walk the human through fixing it before doing anything else
+   that touches git or this project's governed tooling — don't silently
+   work around a broken setup.
+3. If `scripts/verify-setup.sh` doesn't exist yet in this repo, tell the
+   human plainly rather than silently continuing — but don't assume it
+   means setup was done wrong. Two different real causes, worth telling
+   apart: either this kit's setup really was only partially applied
+   (see `SETUP-GUIDE.md` in `taseenali/Kit-GO`), **or**
+   this project adopted an older version of this kit, from before
+   `verify-setup.sh` existed (check `CHANGELOG.md` for when it was
+   added, and this project's own record of which version it adopted, if
+   one exists) — in which case the real fix is upgrading the kit
+   (`SETUP-GUIDE.md`'s "Upgrading an already-adopted project" section),
+   not redoing setup that was already correct for its time.
+4. Check `docs/OPEN-RESEARCH-QUEUE.md` (if this project uses one) before
+   starting any pass sized beyond a small fix, per `AGENT_RULES.md`'s
+   Definition of Done — this holds regardless of whether
+   `verify-setup.sh` warned about it: a missing warning (the script
+   didn't run, doesn't exist yet, or its check is inert for a project
+   that keeps this file somewhere other than `docs/`) is not the same as
+   "nothing open." Treat a real `verify-setup.sh` warning as a reminder
+   that reinforces this step, never as the thing that turns it on. A
+   warning about unresolved `docs/KIT-ISSUES-LOG.md` entries is
+   different in kind, not just in urgency: those are deferred kit
+   bugs/ideas for the kit maintainer's own later attention, not something
+   to act on in this session — reading them costs nothing and keeps you
+   honest about what's actually pending, but they don't gate the work in
+   front of you the way an open research question does. This is this
+   kit's real answer to AI agents having no memory across sessions: a
+   written record only helps if it actually gets read back, not just
+   written once and trusted to be remembered next time.
+
+## Kit-GO commands
+
+If `docs/KIT-GO.md` exists in this repo, the Kit-GO command set is
+installed. **Typing `Kit-GO` (or running `/kit-go`) changes nothing**: it
+re-reads the rules and checks the repo's health (on a branch you didn't
+write, do the playbook's integrity diff first). Use it
+at the start of a session and whenever you lose the thread (after a long
+stretch of work, or after your context was compacted). Other commands:
+`Kit-GO help` (list them all), `Kit-GO guide` (quick guide), `Kit-GO guide
+me` (guide for this project's current stage), `Kit-GO log` (record a Kit
+bug or idea), `Kit-GO sync` (plan an upgrade). The full playbook, including
+how an agent without slash commands should treat these typed phrases, is
+`docs/KIT-GO.md` -- read the section for a command before running it. Kit-GO
+never approves anything: tier rules and human sign-off are unchanged.
+
+## {{PROJECT_NAME}}-specific context
+
+{{PROJECT_SPECIFIC_CONTEXT}}
+<!-- Add anything this project's agents need to know that isn't already
+in AGENT_RULES.md -- e.g. where the real data lives, which services are
+pluggable/not-yet-connected per Stage 0's own standing exception,
+project-specific tooling beyond this kit (a separate policy engine, an
+API key setup) and where its own setup/verification lives. Replace this
+whole placeholder line and the comment above it -- don't leave either
+in the committed file. -->

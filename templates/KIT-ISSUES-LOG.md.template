@@ -1,0 +1,134 @@
+# Kit Issues Log
+
+A single, shared record of real bugs, gaps, friction, or **reusable
+ideas the kit doesn't have yet** — found in **this kit** (not in
+{{PROJECT_NAME}} itself) while using it on this project — kept as one
+file everyone appends to, unlike the per-person
+`docs/collaborators/<username>.md` logs, because there's usually only a
+handful of these a year, not enough for lock contention on concurrent
+PRs to be a real concern the way it is for daily work logs.
+
+## The rule this file exists to support
+
+**Finding a bug — or a genuinely reusable idea — in this kit while
+working on {{PROJECT_NAME}} is not, by itself, a reason to go open a PR
+against the kit repo.** Record it here instead and keep working on
+{{PROJECT_NAME}}. See
+`.github/AGENT_RULES.md`'s "Finding a bug in the governance kit itself" section for
+the full rule and why it changed from this kit's earlier default
+(immediately propagating every fix upstream) — in short: fixing the kit
+is now treated as its own deliberate, separate unit of work, not
+something that happens as an incidental side effect of unrelated project
+work, however good the fix.
+
+**The one exception** — an immediate, real-time fix landed directly in
+the kit repo, right now, without waiting for a separate session — is only
+ever the kit maintainer's own call to make, and only when they
+explicitly say so in the moment. It is never something an agent decides
+on its own that the situation "clearly" calls for, even in a session the
+maintainer is otherwise directing. If that exception is used, still add
+an entry here noting it, so this file stays a complete record either way.
+
+**Mechanically true for anyone who isn't the kit's maintainer:** you
+almost certainly don't have push access to the kit's own repository, so
+the "record here, don't fix there" default isn't really optional for
+you — attempting the fix yourself would simply fail at the push step.
+That's a real, if incidental, backstop; it doesn't apply to the
+maintainer's own sessions, where nothing mechanical stops a same-session
+fix, which is exactly why the rule above has to be a stated policy, not
+just an access-control side effect.
+
+## How an entry reaches the kit's maintainer
+
+This file living in {{PROJECT_NAME}}'s own repo doesn't, by itself, put
+its contents in front of the kit's maintainer — closing that gap is a
+real, separate step, not automatic just because the file exists. Two
+ways to do it, pick (or combine) what fits:
+
+- **Manual (the default, no setup required):** periodically share this
+  file's new entries with the kit's maintainer directly — however you'd
+  share anything else (a message, a copy-paste, pointing them at this
+  file in this repo if they have access to it). This is what this kit
+  assumes happens unless you've deliberately set up the alternative
+  below. `.github/AGENT_RULES.md`'s rule requires whatever agent adds an
+  entry here to also say so out loud in that same conversation — so the
+  human doesn't have to remember to check this file for new entries
+  nobody mentioned.
+- **Automated, opt-in (real setup required, not wired anywhere by
+  default):** `templates/workflows/kit-issues-notify.yml.template` posts
+  a cross-repo notification (a link, not this file's contents — see that
+  template's own header for why it deliberately doesn't copy entry text
+  across a possible public/private trust boundary) to the kit repo when
+  this file changes. Requires creating and storing a scoped Personal
+  Access Token as a real, deliberate setup step — read that template's
+  header in full before wiring it in; it is not a drop-in default for
+  the reasons explained there. **GitHub-to-GitHub only** (re-implement
+  the intent yourself on another host — see `SETUP-GUIDE.md`'s "A
+  different VCS host" section), and **wiring it up is not the same as
+  confirming it's actually reaching anyone** — a rotted token or a
+  disabled Actions run degrades to a warning line in this repo's own CI
+  log, which the maintainer will never see on their own. Treat the
+  manual path as the real fallback even after setting this up, not just
+  before.
+
+## Entry format
+
+**Read this note before running any setup-time find-and-replace on this
+file, including for this project's own name above.** Unlike this file's
+one real one-time setup value (the project's own name, filled in near
+the top of this file), the double-brace markers in the template block
+below are filled in fresh *each time a new entry is added*, by whoever's
+adding it — they are not part of this kit's usual one-time "search for
+double braces and fill each one in at setup" sweep (see `SETUP-GUIDE.md`
+step 2), and nothing below this point should be filled in until there's
+an actual entry to record. (This note is deliberately written without
+using that literal syntax anywhere in this paragraph, so a blind
+find-and-replace over it can't quietly turn this warning into
+nonsense.)
+
+```
+## {{DATE}} — @{{your-github-username}}
+
+**Kit file/mechanism:** {{which file or mechanism — e.g.
+"templates/verify-setup.sh.template" or "the Tier 2 approval protocol"}}
+**What happened:** {{the real, specific symptom — not "it doesn't work,"
+but what you ran, what you expected, what actually happened}}
+**Workaround used here (if any):** {{what you actually did to keep
+working on this project — leave blank if you just worked around it
+by not using that part of the kit this time}}
+**Resolved here at runtime?** {{No. / or "Yes, by @maintainer's
+username, see kit PR #NN" if the one real-time exception above was used}}
+```
+
+**For the last field specifically, write the literal, bare `No.`**
+(nothing after it) when this entry is what it almost always will be —
+not resolved at runtime — rather than any other wording that means the
+same thing. This one field's exact text matters in a way the others
+don't: `verify-setup.sh.template`'s own automated check for unresolved
+entries looks for that literal string, and a differently-worded "not
+resolved" (`No (not yet)`, `Not resolved`, `No, still open`) won't be
+counted — found the hard way, 2026-09-24: an earlier draft of this
+template showed `No (default) — or "Yes, by..."` as the example text
+itself (not a `{{...}}` placeholder like its neighbors), which broke the
+check in both directions at once — real entries had no fixed wording to
+copy, and the example line's own text was close enough to a real
+unresolved entry that a naive check would have matched the template's
+permanent reference block forever, on every downstream copy.
+
+**Recording an idea instead of a defect?** The fields above are
+defect-shaped by default, but the same format covers a reusable
+improvement — adapt, don't force a fit: use **What happened** for the
+idea itself (what it is, why it's better than what the kit does today),
+leave **Workaround used here** blank (or record what this project adopted
+locally; an idea has nothing to work around), and use **Resolved here at runtime?** the same way (the bare
+`No.` unless the maintainer's real-time exception was used to build it
+into the kit immediately). **If the maintainer declines an entry**, the
+last field should say so with wording that is *not* the bare `No.` (e.g.
+`No -- declined upstream (kit vX.Y.Z triage): <reason>`), so
+`verify-setup.sh`'s open-entry warning stops counting it.
+
+---
+
+<!-- Add new entries above this line, newest at the top. Keep them
+factual and specific -- this is the record the kit's maintainer will
+actually triage from, not a diary. -->

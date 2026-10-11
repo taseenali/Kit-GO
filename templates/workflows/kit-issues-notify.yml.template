@@ -1,0 +1,110 @@
+name: kit-issues-notify
+
+# OPTIONAL. Not copied by SETUP-GUIDE.md's default file list, not wired
+# anywhere by default -- copy this in only if you deliberately want an
+# automated cross-repo ping to the kit's maintainer when this project's
+# docs/KIT-ISSUES-LOG.md changes. The default this kit assumes otherwise
+# is manual: share that file's new entries with the maintainer yourself
+# (see KIT-ISSUES-LOG.md.template's own "How an entry reaches the kit's
+# maintainer" section). Nothing about the "record, don't fix" rule in
+# AGENT_RULES.md depends on this workflow existing.
+#
+# REAL SETUP REQUIRED, not a drop-in default: this needs a fine-grained
+# GitHub Personal Access Token scoped to EXACTLY ONE repository (the kit
+# repo you're reporting to) with ONLY the "Issues: write" permission --
+# no other repo, no other permission -- stored as a secret in THIS repo
+# named KIT_MAINTAINER_PAT. Without that secret set, this workflow is a
+# deliberate, silent no-op (a warning annotation, not a failure) -- it
+# will never block a PR over a missing optional secret.
+#
+# Why a real PAT and not the default `github.token`: the token GitHub
+# hands this repo's own Actions runs is scoped to this repo only -- it
+# structurally cannot open an issue on a different repository, by
+# GitHub's own design, regardless of what permissions this file requests.
+#
+# PUBLIC-TARGET WARNING: the kit repo this notifies (KIT_REPO below) is PUBLIC.
+# The issue this workflow opens there carries your source repository's NAME
+# (in its title and body) and a link to the PR. If that repository is private,
+# its name and the PR link become public. Only enable this if that is fine, or
+# point KIT_REPO at a private repository you control (for example a private
+# fork of the kit), which is what this workflow was written for.
+#
+# Deliberately does NOT copy this file's actual entry text into the
+# cross-repo notification -- only a link back to the PR that changed it.
+# The kit repo this notifies may be public while the project using it is
+# private; auto-copying an entry's content across that boundary would be
+# exactly the kind of unreviewed data flow this kit's own "Secrets and
+# data" rule in AGENT_RULES.md warns against elsewhere. A link lets the
+# maintainer read the real entry with their own judgment about who
+# should see it, rather than this workflow making that call for them.
+# One real consequence of that choice: if the source repo is private and
+# the maintainer isn't already a collaborator on it, the link in the
+# notification won't resolve for them -- that's expected, not a bug: it
+# means a human conversation is genuinely needed to share the content,
+# which this workflow was never meant to replace.
+#
+# Real security note, stated plainly: whoever can read or change this
+# repo's Actions secrets can use this token for anything within its
+# granted scope (opening issues on the target repo) -- keep the PAT's
+# scope to exactly "Issues: write" on exactly the one target repo,
+# nothing broader, and treat it as a real credential, not a convenience
+# value.
+#
+# Edit KIT_REPO below to whichever kit repository you're actually
+# reporting to (a fork, a different maintainer's copy) before relying on
+# this -- it is not auto-detected.
+#
+# GITHUB-TO-GITHUB ONLY: this file is a GitHub Actions workflow calling
+# the `gh` CLI against GitHub's own API -- it has no equivalent on a
+# non-GitHub host. If this project's own VCS is GitLab, Bitbucket, Azure
+# DevOps, etc. (see SETUP-GUIDE.md's "A different VCS host" section),
+# this specific file doesn't port as-is; re-implement the same intent
+# (a same-host CI job that pings the kit repo's issue tracker, using
+# that host's own API and secret-storage mechanism) rather than assuming
+# this YAML translates.
+#
+# "REACHES YOU" ISN'T A GUARANTEE, EVEN WHEN THIS IS WIRED UP: a PAT can
+# expire, a scope can be wrong from the start, a secret can be renamed
+# or removed, or this repo's own Actions can be disabled -- any of those
+# makes this degrade to a warning line in a CI log in the DOWNSTREAM
+# repo, which the kit's maintainer will never see (they don't watch
+# every downstream project's own Actions logs). This workflow existing
+# and looking "wired up" is not evidence it's actually reaching anyone;
+# don't let it substitute for the human occasionally checking in on
+# whether their reports are actually landing.
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+    paths:
+      - 'docs/KIT-ISSUES-LOG.md'
+
+permissions:
+  contents: read
+
+jobs:
+  notify-kit-maintainer:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Notify the kit's maintainer of a new/updated entry
+        env:
+          KIT_MAINTAINER_PAT: ${{ secrets.KIT_MAINTAINER_PAT }}
+          KIT_REPO: taseenali/Kit-GO
+          SOURCE_REPO: ${{ github.repository }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          ACTOR: ${{ github.actor }}
+        run: |
+          if [ -z "$KIT_MAINTAINER_PAT" ]; then
+            echo "::warning::KIT_MAINTAINER_PAT secret is not set -- skipping automated notification (this is expected unless you deliberately set this up; see this workflow's own header). Share docs/KIT-ISSUES-LOG.md with the kit's maintainer manually instead."
+            exit 0
+          fi
+
+          # Link only, never the entry's own text -- see this file's
+          # header for why (a possible private-source/public-target trust
+          # boundary this workflow shouldn't cross on its own).
+          body=$(printf 'A downstream project (%s) updated its kit-issues log.\n\nPR: %s\nOpened/updated by: @%s\n\nThis notification deliberately does not include the entry'"'"'s own text -- see the PR'"'"'s diff of `docs/KIT-ISSUES-LOG.md` for the real content.' "$SOURCE_REPO" "$PR_URL" "$ACTOR")
+
+          GH_TOKEN="$KIT_MAINTAINER_PAT" gh issue create \
+            --repo "$KIT_REPO" \
+            --title "Kit-issues log update from $SOURCE_REPO" \
+            --body "$body" || echo "::warning::Could not open an issue on $KIT_REPO -- check the PAT's scope and expiry. Informational only, does not block this PR."

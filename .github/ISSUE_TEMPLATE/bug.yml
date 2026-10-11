@@ -1,0 +1,25 @@
+name: Bug
+description: Something in Kit-GO does not work as written
+labels: [bug]
+body:
+  - type: input
+    id: version
+    attributes:
+      label: Kit version
+      description: The contents of KIT-VERSION in the copy you are using.
+    validations:
+      required: true
+  - type: input
+    id: platform
+    attributes:
+      label: OS, shell and git version
+      description: For example "Windows 11, Git Bash, git 2.55" or "macOS 15, zsh, git 2.47".
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened, and what did you expect?
+      description: Paste the exact command and its output. Remove any secrets first.
+    validations:
+      required: true

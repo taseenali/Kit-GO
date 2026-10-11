@@ -1,0 +1,15 @@
+# Tier 2 PRs (see AGENT_RULES.md "Review rigor scales with what's actually
+# at stake" -- AGENT_RULES.md's own Tier 2 list names this file
+# explicitly) need a real, informed review from an owner before merge --
+# the human-in-the-loop backstop those changes are never self-merged past.
+# Yes, this file is in its own Tier 2 list: an agent can't self-merge a
+# change to who its own sign-off goes to. ("Never self-merged" means the
+# agent never executes the merge itself, by any mechanism, even after the
+# human says yes -- see AGENT_RULES.md's "What 'never self-merged by an
+# agent' actually means.")
+# Tier 0/1 PRs are self-merged by the agent once their own preconditions
+# hold; this file's listed owners are not GitHub-enforced reviewers on
+# every PR (branch protection requiring code-owner review typically needs
+# a paid plan), they are the accountable humans Tier 2 sign-off goes to.
+# Add more owners here as the team grows; keep the wildcard rule first.
+* @{{OWNER_GITHUB_HANDLE}}

@@ -1,0 +1,196 @@
+# Stage 0 — Research Enrichment Gate
+
+**Applies to:** a brand-new project adopting this kit, or a major new
+product/feature pivot within an existing one (a genuinely new product
+direction, not routine feature work). Routine passes on an already-cleared
+product stay governed by the regular Definition of Done and
+`OPEN-RESEARCH-QUEUE.md` instead — this gate runs once per product
+direction, not once per feature.
+
+**The rule:** no Phase 1 (first real, load-bearing) code until every
+dimension below has a recorded status AND the human owner gives an
+explicit sign-off — the same shape as a real "Pass 12 §8"-style gate, not
+a formality to click past. Silence is not sign-off; a recorded "yes,
+cleared" statement from the human is.
+
+**Three explicit, standing exceptions — read these before anything else:**
+
+- **Legal/compliance research never blocks this gate or Phase 1 code.**
+  Dimension 5 below is real, thorough research — but its findings are
+  informational. Code gets built regardless of what it finds. Only the
+  live *execution* of a specifically legally-gated action (an actual
+  outbound campaign, an actual data sale, whatever this project's
+  equivalent is) waits on a real answer, and that wait is scoped to that
+  one action, not the whole build.
+- **Missing external accounts/endpoints never block this gate or Phase 1
+  code.** A payment processor, a messaging API, a data-registry
+  subscription — none of these being unavailable yet stops anything from
+  being built. Build against a pluggable interface (an injectable
+  function, same shape as this kit's own `record_national_dnc_scrub()`-
+  style pattern) and connect the real account the moment it exists.
+- **The prior-art sub-check inside Dimension 3 (below) never blocks that
+  dimension from clearing, or this gate, or Phase 1 code.** This is
+  narrower than it might read: Dimension 3 as a whole still needs a
+  real, cleared architecture decision before Phase 1 (the stack choice
+  itself is not exempt) — only the specific sub-question "did we find
+  clear prior art for this approach" is allowed to come back
+  inconclusive without that blocking Dimension 3's own clearance. "We
+  looked, found nothing definitive, and are proceeding with reasoning X
+  anyway" is a valid, real, *cleared* outcome for Dimension 3 — it is
+  not the same as Dimension 3 itself being unresolved. Log an
+  inconclusive prior-art result as "open, narrowed" in
+  `OPEN-RESEARCH-QUEUE.md` (never as "exhausted" — see that file's own
+  process notes). This exception is scoped this narrowly on purpose:
+  exempting all of Dimension 3 would repeat the exact self-contradiction
+  a fresh review pass caught in an earlier draft of this exception,
+  2026-09-23 — bundling "one sub-check inside a dimension may stay
+  inconclusive" with "the whole dimension is exempt from clearing,"
+  which are not the same claim.
+
+All three exceptions exist because the point of Stage 0 is making sure
+the **product** is understood before code commits to a direction — not
+making external bureaucracy, paperwork, or open-ended research the
+pacing item for engineering.
+
+**Scope discipline:** Stage 0 produces an explicit in-scope / out-of-scope
+boundary (see Dimension 2) and every research thread stays inside it. This
+is a bounded phase with a real end, not open-ended research that never
+converges — if a thread starts pulling outside the product's actual scope,
+note it as a future consideration and move on, don't chase it here.
+
+**Interactive requirement:** the agent asks the human real, specific
+questions at each checkpoint below — it does not silently research
+everything and present conclusions as a fait accompli. Dimension 6 (UI/UX
+vision) in particular is *elicited from the human*, never inferred or
+assumed — it's the one dimension where the answer lives in the human's
+head, not in any research the agent could do instead.
+
+---
+
+## Dimension 1 — Product
+
+What is this, who is it actually for (not "everyone" — the real, specific
+user), what problem does it solve, what does success look like. Ask the
+human directly if their answer isn't already clear from context; don't
+assume.
+
+**Status:** {{cleared / in progress / not started}}
+**Findings / answers:**
+
+## Dimension 2 — Project & Scope
+
+MVP boundaries. What's explicitly in scope for the first real build, what's
+explicitly deferred, what's explicitly never in scope. This boundary is
+what "scope discipline" above and the rest of this project's Definition of
+Done ("Stay inside the task you were given") both lean on — write it down
+concretely, not as a vague aspiration.
+
+**Status:**
+**In scope:**
+**Deferred:**
+**Out of scope:**
+
+## Dimension 3 — Architecture & Code
+
+Tech stack choices and why (not just what). Data sources. Integration
+points with anything external. What's build-vs-buy, and why.
+
+**Prior-art check (see this file's own third standing exception —
+informational, never blocks):** before committing to a genuinely novel
+technical approach, a real check for documented experience from
+comparable projects — does prior art exist, what did it get right or
+wrong, is there a reason this project's situation is actually different.
+An inconclusive result is a real, recordable outcome (log it in
+`OPEN-RESEARCH-QUEUE.md` as "open, narrowed," never "exhausted") — this
+check exists to avoid re-deriving a solved problem from scratch, not to
+gate the build on finding a definitive answer.
+
+**Status:**
+**Findings:**
+
+## Dimension 4 — Developer / Practitioner UX
+
+How will the real humans running this day to day (the dev/ops side, not
+the end user) actually interact with it — deployment model, how a change
+gets from idea to production, what "on call" looks like if that applies.
+
+**Status:**
+**Findings:**
+
+## Dimension 5 — Legal / Compliance (informational only — never blocks)
+
+Real research into applicable regulations, data handling obligations,
+licensing, anything with legal weight for this specific product. Document
+findings honestly, including genuine unknowns that need real counsel —
+but this dimension's status can be "informational, findings recorded,
+counsel recommended for X" and Stage 0 still clears. Never let this be
+the reason Phase 1 code doesn't start.
+
+**Status:** informational — {{findings recorded / research ongoing}}
+**Findings:**
+**What needs real counsel before LIVE EXECUTION (not before building):**
+
+## Dimension 6 — UI/UX Vision (interactive — ask, don't assume)
+
+Ask the human directly, and record their actual answers, not a paraphrase
+dressed up as research:
+- What existing products (if any) does this resemble, or deliberately not
+  resemble?
+- Walk through the primary user's first five minutes — what do they see,
+  what's the first thing they do?
+- What are the 2-3 screens/flows that matter most — and which ones
+  genuinely don't matter yet?
+- Any hard requirements (accessibility, platform, existing brand/design
+  system) or hard non-requirements ("definitely not a mobile app," "no
+  dashboard, CLI is fine for now")?
+
+If the human hasn't thought about this yet, that's a valid, recordable
+answer too ("no UI vision yet, CLI/API-first until one exists") — the
+point is getting a real, current answer on record, not manufacturing a
+premature design.
+
+**Status:**
+**Findings / the human's actual answers:**
+
+## Dimension 7 — Data & Security
+
+What data is handled, how sensitive is it, retention expectations, who
+can access what.
+
+**Status:**
+**Findings:**
+
+---
+
+## Stage 0 Exit Sign-off
+
+The "Status" column is this dimension's real, current state. The "Gets a
+never-blocks exception?" column is a fixed property of the dimension
+itself (only Dimension 5's legal carve-out, and the narrow prior-art
+sub-check inside Dimension 3, have one) — it does not mean a dimension
+with "No" here is already cleared, and it does not mean Dimension 3 as a
+whole is exempt (only its prior-art sub-check is). **Read the two
+columns together, not the second one alone**: a dimension whose Status
+is "in progress" still blocks Phase 1 code regardless of what its
+exception column says (a real point of confusion in an earlier version
+of this table, found and fixed after an adversarial review pass,
+2026-09-22/23).
+
+| Dimension | Status | Gets a never-blocks exception? |
+|---|---|---|
+| 1. Product | {{cleared / in progress / not started}} | No |
+| 2. Project & Scope | | No |
+| 3. Architecture & Code | | No overall — but see this dimension's own prior-art sub-check above, which may stay inconclusive without blocking |
+| 4. Developer/Practitioner UX | | No |
+| 5. Legal/Compliance | | **Yes** — informational only, never blocks |
+| 6. UI/UX Vision | | No (even if the answer is "no vision yet, deferred" — that's still a real, recorded answer) |
+| 7. Data & Security | | No |
+
+**Human sign-off statement (required, verbatim, not implied):**
+
+> "{{Cleared to start Phase 1 code — date, name.}}"
+
+Once signed off, this file becomes historical record — don't keep editing
+it for routine feature work afterward; that's what the regular Definition
+of Done and `OPEN-RESEARCH-QUEUE.md` are for. Re-run Stage 0 (a new copy,
+not an edit to this one) only for a genuinely new product direction later.

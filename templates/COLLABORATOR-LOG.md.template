@@ -1,0 +1,62 @@
+# Collaborator Log — {{GITHUB_USERNAME}}
+
+A personal, dated work log for {{GITHUB_USERNAME}} on this project — one
+file per collaborator, kept separate on purpose. A single shared log
+everyone appends to conflicts on nearly every concurrent PR (two people
+editing the same lines of the same file); per-person files avoid that
+structurally, the same reason this kit already treats `setup-hooks.sh`
+and `verify-setup.sh` as separate files rather than one shared script.
+
+**What this is for:** letting anyone — a PR reviewer, a collaborator
+picking up related work, a future session with no memory of this one —
+read one person's own account of what they did and why, signed, without
+reconstructing it from git history alone.
+
+**What this is NOT:** a replacement for real PR descriptions, commit
+messages, or this kit's other shared living documents
+(`OPEN-RESEARCH-QUEUE.md`, a signed-off `STAGE-0-RESEARCH-ENRICHMENT.md`).
+This is the *personal* record; those are the *project's* shared record.
+Don't duplicate a PR's own description here — reference it, and record
+what a PR description doesn't capture (why, in your own words, not just
+what).
+
+**Real limitation, stated plainly, not glossed over:** if an AI agent
+works under this same GitHub identity (shared credentials — see this
+project's own `PASS-0-ENVIRONMENT-DISCOVERY.md` for whether that's the
+case here), git and GitHub cannot mechanically tell an entry the human
+wrote apart from one an agent wrote on their behalf. This file's own
+content is the only place that distinction can survive — **say plainly
+in each entry which one it was** ("written by [name]" vs. "this
+session's work was Claude Sonnet 5, directed by [name]"), rather than
+letting every entry read as equally human-authored when some weren't.
+
+**Don't infer who a log entry belongs to from session context.** A
+session's `userEmail`-style field, a git `user.email`, or an OS username
+reflects the local account/session, not necessarily a different real
+person (a real session took one human's changed local account for a
+second contributor). Which person is working is established by an
+explicit statement from them or by a PR/review from their own
+account, not by guessing from environment fields.
+
+**Mechanical nudge, not a gate:** a CI check (if this project copied
+`templates/workflows/collaborator-log-reminder.yml.template`) posts a
+non-blocking reminder if a PR doesn't touch this file — informational
+only, same "detection not prevention" shape as this kit's other checks
+on a repo without branch protection. It does not, and cannot, verify
+that an entry is honest or complete.
+
+---
+
+## {{DATE}}
+
+**Who:** {{your name, and if an AI agent did the work, name it and the
+model explicitly — e.g. "Claude Sonnet 5, directed by @{{GITHUB_USERNAME}}"}}
+**PRs/commits:** {{links}}
+**What:** {{what was actually done — specific, not a restatement of the
+PR title}}
+**Why:** {{the real reason — a decision, a constraint, a bug's actual
+cause — not just a repeat of "what"}}
+
+<!-- Add a new dated entry above this line for each real work session or
+PR. Keep entries factual and specific -- this is a record for someone
+else to actually use, not a diary. Newest entry at the top. -->

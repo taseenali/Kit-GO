@@ -61,7 +61,7 @@ repo.
 | Builders (parallel) | mid-tier | Sonnet |
 | Security review of backend changes | strongest, fresh context | Opus 5 |
 | Review of routine code | fresh mid-tier | Sonnet |
-| Mechanical checks | scripts first, cheapest for triage | Haiku |
+| Mechanical checks | scripts first, cheapest for triage | Haiku (planned, not used so far) |
 
 Cap: no more than about 2 top-class agents at once, because usage limits are real.
 
@@ -99,7 +99,7 @@ the branch's pushed commits.
 
 Measured, one project, from git and the project's own metrics file:
 
-- 80 merged PRs and 2 closed unmerged, 2026-09-22 to 2026-10-11 (from `gh`).
+- 81 merged PRs and 2 closed unmerged, 2026-09-22 to 2026-10-11 (from `gh`, at the time of writing).
 - Before speed mode, 8 PRs (#17 to #24, all fully careful) had 5 blocking findings caught
   before merge. Per-review cost then: about 50k to 90k subagent tokens, 1 to 4 minutes.
 - In speed mode, 6 PRs in the recorded rows had a pre-merge finding in the "blocking"

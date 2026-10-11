@@ -58,6 +58,9 @@ templates/KIT-ISSUES-LOG.md.template        -> docs/KIT-ISSUES-LOG.md
 templates/KIT-GO.md.template                -> docs/KIT-GO.md   (the Kit-GO command playbook; no placeholders, copy verbatim)
 templates/kit-go.sh.template                -> scripts/kit-go.sh
 templates/commands/kit-go*.md.template      -> .claude/commands/kit-go*.md   (one file per command -- `kit-go-intake` has no wrapper at all: it is maintainer-only, a typed phrase in the Kit's own repo; drop `.template`; Claude Code slash commands -- other agents use the typed phrases in the playbook)
+templates/SPEED-MODE.md.template            -> docs/SPEED-MODE.md   (OPTIONAL: parallel-agent playbook; see "Adding speed mode (optional)" below)
+templates/AGENT-LEDGER.md.template          -> docs/AGENT-LEDGER.md   (OPTIONAL: only with speed mode; roster and resume recipes, never credentials)
+templates/SPEED-MODE-METRICS.md.template    -> docs/SPEED-MODE-METRICS.md   (OPTIONAL: only with speed mode; per-PR record and revert conditions)
 KIT-VERSION (this kit's root)               -> docs/KIT-VERSION   (a one-line copy; update it whenever you sync -- it's how Kit-GO knows which version you adopted)
 LICENSE (this kit's root)                   -> docs/KIT-LICENSE   (the Kit's terms, Apache-2.0; keep it with the Kit-derived files)
 NOTICE (this kit's root)                    -> docs/KIT-NOTICE    (the attribution Apache-2.0 requires redistributors to keep)
@@ -716,3 +719,41 @@ things worth doing deliberately rather than by default:
   edit) — don't rely on `CODEOWNERS` or the Tier system as an access
   boundary; they govern review/merge process for people who already have
   write access, not who has it in the first place.
+
+### Adding speed mode (optional)
+
+Speed mode is a way of running several AI agents in parallel without
+lowering rigor: the speed comes from parallelism and planning, never from
+skipping a review. It is opt-in and adds guardrails; it never relaxes the
+tiers. The evidence for it is one project, so treat it as a practice to
+measure, not a proven default.
+
+**Prerequisites.** The Tier policy in `AGENT_RULES.md` and the pre-push
+hook are already adopted and verified (steps 1, 2 and 9 above). Speed mode
+sits on top of them; without them its guardrails have nothing to stand on.
+
+**Steps.**
+1. Copy `templates/SPEED-MODE.md.template`, `AGENT-LEDGER.md.template` and
+   `SPEED-MODE-METRICS.md.template` to `docs/` (drop `.template`).
+2. Fill in the placeholders. In `SPEED-MODE.md`: `{{PROJECT_NAME}}` and the
+   three risk-class path lists (`{{FULL_RISK_PATHS}}`,
+   `{{STANDARD_RISK_PATHS}}`, `{{LIGHT_RISK_PATHS}}`). Derive them from
+   your own Tier 2 list: everything on it is Full. The lane-plan row in
+   section 6 is a template to copy per plan; leave it as it is. In
+   `AGENT-LEDGER.md`, fill the roster as agents launch. In
+   `SPEED-MODE-METRICS.md`, **choose the revert-condition numbers
+   (`{{MIN_NET_SAVING_PERCENT}}`, `{{N_PRS}}`) before the first
+   speed-mode PR**, and add the per-PR rows as they merge.
+3. Add the pointer: keep the optional "Speed mode" section in
+   `AGENT_RULES.md` (it is in the template) and add `docs/SPEED-MODE.md`
+   to the project's Tier 2 list, since weakening its guardrails weakens
+   the rules.
+4. Cross-reference `docs/MODEL-UTILIZATION-PLAYBOOK.md` for which concrete
+   model fills each model class.
+
+**Verify.** Search the copied files for `{{`: the only survivors should be
+the lane-plan and roster rows meant to be copied per use. Confirm the
+pre-push hook still blocks a direct push to the default branch. Run a
+first small parallel task through the lane plan and check that each agent
+used its own worktree and branch and that the branch history shows
+`wip:` commits.

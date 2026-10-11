@@ -172,3 +172,6 @@ reaching for a stronger-than-necessary model:
 - This project's open-research-queue equivalent, if it has one — where a
   model's real fit here should be logged once genuinely researched,
   not guessed at in this table.
+- If this project uses speed mode (`docs/SPEED-MODE.md`), that file's
+  roles table names model *classes* (strongest, mid-tier, cheapest); this
+  playbook says which concrete model fills each class here.

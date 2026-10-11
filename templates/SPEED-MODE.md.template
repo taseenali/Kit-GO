@@ -1,0 +1,222 @@
+# Speed Mode -- {{PROJECT_NAME}}
+
+**Status:** Optional. Binding only once this project adopts it (see
+SETUP-GUIDE.md, "Adding speed mode"). Read `.github/AGENT_RULES.md`
+first: its tiers, git rules and Definition of Done win any conflict with
+this file. Where this file adds a guardrail, the guardrail is binding;
+where it describes a way of working, the project may adjust it.
+
+## 1. What speed mode is, and is not
+
+Speed mode is a way of running several AI agents in parallel without
+lowering rigor. Speed comes from **parallelism and planning** -- disjoint
+work running at the same time, with the next task always specified before
+the last one finishes. It never comes from skipping a required review, a
+live check, or a guardrail in section 2.
+
+- **Opt-in.** A project, or a single session, turns it on on purpose.
+  Without it, work follows `AGENT_RULES.md` alone.
+- **It never lowers the tiers.** Tier policy is unchanged. A PR that
+  needs a fresh adversarial review and a human merge under the tiers needs
+  exactly that in speed mode too.
+- **It cuts ceremony, not checks:** duplicated prose, ad-hoc test
+  scaffolding, serial waiting, and over-provisioned models on low-risk
+  changes.
+
+## 2. Non-negotiable guardrails (never lowered, in any profile)
+
+1. Anything that enforces **access, identity, secrets, CI or governance**
+   (auth and permission rules, backend configuration, `.gitignore` and env
+   handling, workflows, hooks, the rules files) gets a **fresh,
+   independent review with real verification** -- run against the real
+   system or a real throwaway account where one exists, not just a read of
+   the diff. If the project's tiers make it Tier 2, a **human merges**
+   it. Speed mode never touches "human merges".
+2. Any **irreversible change** (a schema or data migration, a live
+   configuration change, a deletion, a release) is reviewed **statically,
+   as a draft, before it is applied** -- see section 7.
+3. **Reviewer freshness and independence.** The reviewer starts with no
+   shared context, never sees the author's rationale (only the diff and the
+   claim), and must try to *add* cases the author's own tests lack. A
+   reviewer that only re-runs the author's checks is a rerun, not a
+   review. The author never grades their own tests alone.
+4. **Verify the base before branching.** Fetch, then branch from the
+   fetched default branch; check the base again before pushing. A
+   background agent once branched from a stale local copy.
+5. **Tier is decided by paths touched, not by judgment.** The lead is the
+   one being reviewed, so the lead does not get to label the PR. If one PR
+   spans classes, the highest class governs the whole PR.
+6. **No secrets in prompts, logs, commit messages or checkpoints.** Agents
+   read secrets from local environment files; nothing carries them.
+
+## 3. Risk classes (path-based; the adopter fills this in)
+
+Fill the path column from this project's own Tier 2 list and its real
+layout. A change falls in the highest class any touched path belongs to.
+
+| Class | Paths and changes | Profile |
+|---|---|---|
+| **Full** | {{FULL_RISK_PATHS}} -- at minimum everything in guardrail 1 | careful, never lowered |
+| **Standard** | {{STANDARD_RISK_PATHS}} (for example server-side code and new queries or routes that are not Full) | standard |
+| **Light** | {{LIGHT_RISK_PATHS}} (for example presentational code, copy, styles, docs with no new data access or auth logic) | fast allowed |
+
+A change that looks like "just UI" but adds a data column, a permission,
+or a route's auth logic is **not** Light. A new column on an existing
+table can be silently covered by an existing broad rule; treat it as Full.
+
+## 4. Profiles
+
+- **careful** (Full): fresh adversarial review with real verification, a
+  full re-run of the project's check suite, and a human merge where the
+  tiers require one. A fix gets re-reviewed, unless it is narrow, covered
+  by the existing checks, and verified against the real system -- then the
+  check re-run plus a read of the prose is enough.
+- **standard** (Standard): one fresh independent review plus green
+  automated gates (types, lint, build, tests).
+- **fast** (Light only): green gates plus the author's self-check; a
+  reviewer is added only if a gate is red or the diff turns out to touch
+  something above Light.
+
+A profile is a floor. Raising it is always allowed; lowering below the
+class's floor is not.
+
+## 5. Roles and model classes
+
+Use **model classes**, not hardcoded names: strongest, mid-tier, cheapest.
+`MODEL-UTILIZATION-PLAYBOOK.md` says which concrete model fills each class
+in this project.
+
+| Role | Model class | Notes |
+|---|---|---|
+| Lead / integrator | mid-tier (session default) | Owns the lane plan, the shared files (section 6), merges, and the log. |
+| Builder (parallel) | mid-tier | Own worktree, own branch, disjoint files only. |
+| Security / adversarial reviewer (Full class) | strongest | Fresh context; runs real verification; must add cases beyond the author's. |
+| Code reviewer (Standard / Light) | mid-tier, fresh | Gates must already be green. |
+| Mechanical checks | scripts first; cheapest model only to triage | Never a judgment call. |
+| Prose writer (log, PR body) | cheapest, with a word cap | A reviewer verifies any accuracy-critical pointer. |
+| Planner / scout | cheapest, read-only | See section 6. |
+
+**Cap concurrent strongest-class agents** (for example 1 to 2 at a time).
+Usage limits are real: a strongest-class reviewer was once cut off
+mid-run and left test data behind. The strongest class leads design and
+the Full-class reviews; do not spend it on mechanical work.
+
+Example mapping, as of 2026-10 (illustrative only; this Kit never
+hardcodes model names, and these will go stale): strongest = a top-tier
+frontier model, mid-tier = the session default model, cheapest = the
+small fast model.
+
+## 6. Plan before parallel; a planner stays ahead
+
+No parallel work starts without a written **lane plan**: one row per task,
+with files that do not overlap between parallel rows.
+
+| ID | Task | Role / model class | Files it may touch (disjoint) | Risk class | Review type | Needs a human? |
+|---|---|---|---|---|---|---|
+| {{LANE_ID}} | {{TASK}} | {{ROLE_AND_CLASS}} | {{FILE_SET}} | {{CLASS}} | {{REVIEW}} | {{HUMAN_ASK_OR_NO}} |
+
+Also write the dependency order (a task on the same files as another
+waits for it) and the batch of human asks, ordered so the human can act in
+one sitting.
+
+A **planner / scout** (cheapest class, read-only) always stays ahead of
+the build. It keeps the next lane's spec, one recommended default per open
+decision, and the list of human asks ready, so the build never stops to
+plan. The planner proposes; the lead decides.
+
+## 7. Parallelism rules
+
+1. **One writer per file set.** Shared files -- migrations, generated
+   types, navigation or layout, shared design tokens, the rules files, and
+   the progress or collaborator log -- are **lead-owned**; builders do not
+   touch them.
+2. **Every agent works in its own worktree** on its own branch. A shared
+   checkout gets branch-switched under parallel agents.
+3. **Branch from the fetched base** (guardrail 4).
+4. **Serialize anything that mutates a shared live system** (a live
+   database, a deployed service). Parallel agents use per-agent tags for
+   test data and clean up by tag.
+5. **Reviewers never see the author's rationale** (guardrail 3).
+6. **Static review of a drafted irreversible change before applying it.**
+   Have a fresh reviewer read the draft (the migration, the config diff)
+   before any live apply. It is the cheapest high-value step: it caught
+   holes before anything was applied. A change already applied live is
+   committed in the same step; a live system ahead of the default branch is
+   the main hazard if a session dies mid-PR.
+7. **No secrets in prompts** (guardrail 6).
+
+## 8. Save as you go; resuming
+
+- Every builder commits a `wip: <what>` snapshot after **every logical
+  step** and pushes **its own branch** (never the default branch, never a
+  merge, never a force-push) after each commit.
+- The to-do and done record lives in commit messages and the final
+  report. **The branch history is the progress record.**
+- Keep a ledger (`AGENT-LEDGER.md`) of agents, branches and resume
+  recipes. It never contains credentials.
+
+Three resume cases:
+
+- **An agent hit a usage limit.** After the reset, resume the **same
+  agent by id** (its context is kept): re-run `git log --oneline
+  origin/<base>..HEAD` and `git status`, then continue from the first
+  unfinished item.
+- **The whole session ended** (or a new session or account). Fetch,
+  list worktrees and open PRs, read each roster branch's commits to see
+  what is done, then launch a fresh builder per unfinished branch with
+  "the commits on it are finished; do not redo them; continue from the
+  first unfinished item".
+- **A read-only agent was cut off** (reviewer, QA). It left no commits;
+  re-run it with the same brief and check for review branches it may have
+  pushed. Clean up any test data it left.
+
+## 9. Session limits
+
+At a usage warning: bring the in-flight work to a safe state (committed,
+pushed, nothing half-applied), then **pause. Never skip a required review
+to save budget.** Prefer scripts before agents. Resume the same agent by
+id rather than spawning a blank one.
+
+## 10. Brevity caps
+
+Log entries: about 150 words (what, why, findings, a link to the PR).
+Commit messages: a subject plus at most 5 lines. PR bodies: change,
+findings, risk, how to merge. Detail belongs in the diff and in code
+comments, not in prose copies. Record the log entry, the metrics row
+(`SPEED-MODE-METRICS.md`) and the progress note as you go; never let the
+record lag the work.
+
+## 11. Known traps (seen in real use)
+
+- **Deleting a stacked PR's base branch closes the PR.** Merge without
+  deleting the branch, retarget the dependent PR first, then delete.
+- **A rebase forces a force-push** an agent may not be allowed to do. Push
+  the rebased work under a new branch name and open a new PR.
+- **A shared checkout gets switched under parallel agents.** Worktrees for
+  every agent; start each from one canonical path form, because a
+  differently-cased working-directory path broke worktree isolation on
+  Windows several times.
+- **An owner pastes a secret into chat.** Rotate it at once, and prefer
+  flows where the secret never transits chat: set it from standard input
+  into the secret store, or have the lead call the API with a scoped
+  token. Where a short-lived scoped token must be pasted, record it in the
+  ledger (no value) and revoke it after use.
+- **A killed test run leaves test data.** Add a startup sweep that removes
+  stale tagged data.
+
+## 12. Honest limits
+
+- Speed mode is **discipline plus review, not a mechanical guarantee.**
+  Nothing here stops an agent that ignores it.
+- The evidence comes from **one project**: several dozen PRs over about a week,
+  one subsystem, one team. That is a small sample for general claims.
+- **What was recorded:** blocking findings found before merge, blocking
+  findings that escaped, which reviews ran, and rough time and token cost.
+  **What was not measured:** a controlled comparison of a mid-tier against
+  a strongest-class reviewer on the same Full-class change, and the
+  net saving against a careful-only baseline. Time-saved figures in the
+  source notes are estimates.
+- No blocking issue escaped to the default branch in that project. That is
+  a reason to keep measuring (`SPEED-MODE-METRICS.md`), not a proof.
+- A green check suite proves only what its author thought of. The value of
+  an independent reviewer is the cases the author did not.

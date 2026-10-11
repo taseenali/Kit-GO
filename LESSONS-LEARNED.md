@@ -463,6 +463,49 @@ different strengths:
   surprising figure is a fabricated verification claim, even when well
   meant.
 
+**Save-as-you-go makes a usage-limit interruption cost nothing.** Builders
+that commit a `wip:` snapshot after every logical step and push their own
+branch lose nothing when a limit or a dead session cuts them off: the
+branch history shows exactly what is done, and the same agent (resumed by
+id) or a fresh one continues from the first unfinished item. In real use two
+interruptions were free for this reason. The branch history is the progress
+record; a ledger of agents, branches and resume recipes (never credentials)
+makes it findable.
+
+**Review a drafted irreversible change statically, before it is applied.**
+A fresh reviewer reading a draft migration found an identifier-namespace
+hole, and later several defects in its test harness, before anything
+touched the live system. Reading the draft is the cheapest high-value step
+there is; once the change is live, every finding costs a repair instead of
+a revision.
+
+**A content-based plausibility gate beat a size heuristic for a backup.**
+A backup job passed its "file is big enough" check while dumping a single
+table, because a flag restricted the dump to one table. A check that looked
+at what the dump actually contained (the expected schemas and tables
+present) caught it where size could not. Check backups by content, and
+prove them with a real restore.
+
+**Deleting the base branch of a stacked PR closes the PR automatically.**
+Merge the base without deleting its branch, retarget the dependent PR to
+the default branch, then delete. The closed PR cannot be reopened against a
+missing base and has to be rebuilt.
+
+**A secret pasted into chat has to be treated as leaked.** Rotate it at
+once, and design the flow so a secret never transits chat in the first
+place (set it from standard input into the secret store, or have the lead
+call the API with a scoped token). Where a short-lived scoped token does
+have to be pasted, track it and revoke it after use. A rule that says
+"never any secret in a prompt" cannot tell the two apart; word it as
+"long-lived or broad secrets", and track the deliberate exceptions.
+
+**A QA agent driving a real browser found what code review and a live
+access-test harness could not.** Both had passed. The browser run found a
+notification indicator that never updated live and a deactivated user whose
+open session still worked. Static review and access tests check what their
+authors thought of; exercising the running product catches what nobody
+described.
+
 ## Multi-repo / multi-codebase products
 
 **A product that spans more than one repository is one system, not "the

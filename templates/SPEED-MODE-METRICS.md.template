@@ -1,0 +1,52 @@
+# Speed-mode metrics -- {{PROJECT_NAME}}
+
+One row per PR, appended at merge. Part of the optional speed mode
+(`SPEED-MODE.md`). Fill what is known and write `?` for what is not; do
+not estimate and present it as measured.
+
+## What to record
+
+- **Class / profile:** the path-based risk class (Full, Standard, Light)
+  and the profile actually used.
+- **Reviews:** how many, of what kind (fresh independent, adversarial with
+  real verification, lead read of the diff, automated gates only).
+- **Blocking found pre-merge:** blocking findings the review caught before
+  merge. Non-blocking findings go in notes, counted separately.
+- **Escaped:** a blocking issue found *after* merge. This is the number
+  that matters most.
+- **Notes:** friction (a blocked merge, a branch trap), cases a reviewer
+  added beyond the author's, time and token cost if known, and any
+  misclassification (labelled Light, but the path check says Full).
+
+## Per-PR table
+
+| PR | Class | Profile | Reviews | Blocking found pre-merge | Escaped | Notes |
+|---|---|---|---|---|---|---|
+| {{PR}} | {{CLASS}} | {{PROFILE}} | {{REVIEWS}} | {{COUNT}} | {{COUNT}} | {{NOTES}} |
+
+## Pre-registered revert conditions
+
+Decided before any speed-mode PR is merged, so the results cannot move
+them. If **any** of these happens, stop using speed mode (return to
+careful-only) until a human decides otherwise:
+
+1. A blocking issue **escapes** to the default branch in a speed-mode PR.
+2. A PR classified Light has a review that finds a blocker the path-based
+   classifier should have routed to Full (a **wrong-class** miss).
+3. The project's automated checks miss a bug that a fresh reviewer finds
+   against the real system, **twice**.
+4. The measured net saving is under {{MIN_NET_SAVING_PERCENT}}% over the
+   first {{N_PRS}} PRs. Choose both numbers now; a threshold picked after
+   seeing the data does not count.
+5. A **long-lived or broad secret** appears in a prompt, log or
+   checkpoint. Deliberate, scoped, short-lived tokens are tracked in the
+   agent ledger and revoked after use; they are not by themselves a
+   trigger, but a real password or a long-lived key is.
+
+With a handful of PRs the averages are anecdotal. Condition 1 matters
+most; weigh the others as warnings, not as proof either way.
+
+## Corrections
+
+If a condition was triggered, or an earlier entry was wrong, add a dated
+correction here rather than editing history.

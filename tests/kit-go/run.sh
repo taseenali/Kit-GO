@@ -287,6 +287,34 @@ wf=$(norm < "$KIT/.github/workflows/kit-go-tests.yml" 2>/dev/null)
 for p in "permissions:" "timeout-minutes:" "windows-latest" "macos-latest" "ubuntu-latest"; do expect_has "$p" "CI workflow has $p" "$wf"; done
 expect_eq "$(printf '%s\n' "$wf" | grep -v '^[[:space:]]*#' | grep -c 'paths:')" 0 "CI workflow has no paths: filter (comments excluded)"
 
+# --- speed mode (optional templates): present, referenced, guardrails intact, generalized
+sm="$KIT/templates/SPEED-MODE.md.template"
+al="$KIT/templates/AGENT-LEDGER.md.template"
+mt="$KIT/templates/SPEED-MODE-METRICS.md.template"
+for f in "$sm" "$al" "$mt"; do
+  if [ -s "$f" ]; then ok; else bad "speed-mode template exists and is non-empty: ${f##*/}"; fi
+done
+for p in "templates/SPEED-MODE.md.template" "templates/AGENT-LEDGER.md.template" "templates/SPEED-MODE-METRICS.md.template" "Adding speed mode (optional)"; do
+  expect_has "$p" "SETUP-GUIDE mentions $p" "$sg"
+done
+smtxt=$(norm < "$sm" | tr '\n' ' ' | sed 's/  */ /g')
+expect_has "## 2. Non-negotiable guardrails" "SPEED-MODE has its non-negotiable guardrails section" "$smtxt"
+expect_has "It never lowers the tiers." "SPEED-MODE says it never lowers the tiers" "$smtxt"
+expect_has "Honest limits" "SPEED-MODE has its honest-limits section" "$smtxt"
+expect_has "Speed mode (optional)" "AGENT_RULES.md.template has the speed-mode pointer" "$ar"
+expect_has "nothing in it relaxes the tiers" "AGENT_RULES pointer says speed mode relaxes nothing" "$ar"
+expect_has "docs/SPEED-MODE.md" "MODEL-UTILIZATION-PLAYBOOK cross-references speed mode" "$(norm < "$KIT/templates/MODEL-UTILIZATION-PLAYBOOK.md.template")"
+mttxt=$(norm < "$mt" | tr '\n' ' ' | sed 's/  */ /g')
+expect_has "A **long-lived or broad secret** appears in a prompt, log or checkpoint." "metrics template has the corrected secrets condition" "$mttxt"
+expect_has "scoped, short-lived tokens are tracked in the agent ledger and revoked after use" "metrics template says scoped tokens are tracked and revoked" "$mttxt"
+expect_has "never contains credentials" "ledger template says it never contains credentials" "$(norm < "$al" | tr '\n' ' ' | sed 's/  */ /g')"
+for f in "$sm" "$al" "$mt"; do
+  b=${f##*/}
+  expect_eq "$(tr -cd '\r' < "$f" | wc -c | tr -d ' ')" 0 "$b has no CR bytes"
+  if norm < "$f" | grep -qE '(^|[^A-Za-z0-9_])([A-Za-z]:[\/]|/(home|Users|tmp|var|etc)/)'; then bad "$b contains an absolute path"; else ok; fi
+done
+if grep -q '{{' "$sm" "$al" "$mt"; then ok; else bad "speed-mode templates keep their {{PLACEHOLDER}} markers"; fi
+
 # ================================================================= BEHAVIOR
 section "Consistency: license, attribution, no covert content"
 

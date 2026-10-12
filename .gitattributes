@@ -50,3 +50,9 @@ LICENSE text eol=lf
 NOTICE text eol=lf
 PROVENANCE.md text eol=lf
 release/*.sh text eol=lf
+
+# Speed-mode templates: LF on every platform (a test asserts no CR bytes).
+templates/SPEED-MODE.md.template text eol=lf
+templates/AGENT-LEDGER.md.template text eol=lf
+templates/SPEED-MODE-METRICS.md.template text eol=lf
+REFERENCE-SETUP.md text eol=lf
